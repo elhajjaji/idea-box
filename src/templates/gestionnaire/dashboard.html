@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}Tableau de bord Gestionnaire{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-gray-800">
+        <i class="bi bi-kanban me-2"></i>Tableau de bord Gestionnaire
+    </h1>
+    <div class="text-muted">
+        Bonjour {{ current_user.prenom }} {{ current_user.nom }}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="bi bi-collection me-2"></i>Mes Sujets
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if subjects %}
+                    <div class="list-group list-group-flush">
+                        {% for subject in subjects %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">{{ subject.name }}</h6>
+                                    {% if subject.description %}
+                                        <small class="text-muted">{{ subject.description[:80] }}{% if subject.description|length > 80 %}...{% endif %}</small>
+                                    {% endif %}
+                                </div>
+                                <form action="/gestionnaire/set_active_subject/{{ subject.id }}" method="post">
+                                    <button type="submit" class="btn btn-sm {% if active_subject and active_subject.id == subject.id %}btn-success{% else %}btn-outline-primary{% endif %}">
+                                        {% if active_subject and active_subject.id == subject.id %}
+                                            <i class="bi bi-check-circle me-1"></i>Actif
+                                        {% else %}
+                                            <i class="bi bi-play-circle me-1"></i>Activer
+                                        {% endif %}
+                                    </button>
+                                </form>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-inbox text-muted" style="font-size: 2rem;"></i>
+                        <p class="text-muted mt-2">Aucun sujet assigné comme gestionnaire</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="bi bi-gear me-2"></i>Sujet Actif: 
+                    {% if active_subject %}{{ active_subject.name }}{% else %}Aucun{% endif %}
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if active_subject %}
+                    <div class="mb-3">
+                        {% if active_subject.description %}
+                            <p class="text-muted"><strong>Description:</strong> {{ active_subject.description }}</p>
+                        {% endif %}
+                        
+                        <div class="row text-center mb-3">
+                            <div class="col-6">
+                                <div class="border-end">
+                                    <div class="h5 mb-0 {% if active_subject.emission_active %}text-success{% else %}text-muted{% endif %}">
+                                        <i class="bi bi-lightbulb{% if active_subject.emission_active %}-fill{% endif %}"></i>
+                                    </div>
+                                    <small class="text-muted">Émission d'idées</small>
+                                    <br>
+                                    <span class="badge {% if active_subject.emission_active %}bg-success{% else %}bg-secondary{% endif %}">
+                                        {% if active_subject.emission_active %}Active{% else %}Inactive{% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="h5 mb-0 {% if active_subject.vote_active %}text-primary{% else %}text-muted{% endif %}">
+                                    <i class="bi bi-hand-thumbs-up{% if active_subject.vote_active %}-fill{% endif %}"></i>
+                                </div>
+                                <small class="text-muted">Session de vote</small>
+                                <br>
+                                <span class="badge {% if active_subject.vote_active %}bg-primary{% else %}bg-secondary{% endif %}">
+                                    {% if active_subject.vote_active %}Active{% else %}Inactive{% endif %}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h6 class="mb-3">
+                        <i class="bi bi-lightning me-2"></i>Actions disponibles:
+                    </h6>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="/gestionnaire/subject/{{ active_subject.id }}/manage_users" class="btn btn-info">
+                            <i class="bi bi-people me-2"></i>Gérer les utilisateurs du sujet
+                        </a>
+                        
+                        <div class="row">
+                            <div class="col-6">
+                                <form action="/gestionnaire/subject/{{ active_subject.id }}/activate_emission" method="post">
+                                    <button type="submit" class="btn btn-success w-100" {% if active_subject.emission_active %}disabled{% endif %}>
+                                        <i class="bi bi-play-circle me-1"></i>Activer émission
+                                    </button>
+                                </form>
+                            </div>
+                            <div class="col-6">
+                                <form action="/gestionnaire/subject/{{ active_subject.id }}/deactivate_emission" method="post">
+                                    <button type="submit" class="btn btn-warning w-100" {% if not active_subject.emission_active %}disabled{% endif %}>
+                                        <i class="bi bi-stop-circle me-1"></i>Désactiver émission
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-6">
+                                <form action="/gestionnaire/subject/{{ active_subject.id }}/activate_vote" method="post">
+                                    <button type="submit" class="btn btn-primary w-100" {% if active_subject.vote_active %}disabled{% endif %}>
+                                        <i class="bi bi-play-circle me-1"></i>Activer vote
+                                    </button>
+                                </form>
+                            </div>
+                            <div class="col-6">
+                                <form action="/gestionnaire/subject/{{ active_subject.id }}/close_vote" method="post">
+                                    <button type="submit" class="btn btn-secondary w-100" {% if not active_subject.vote_active %}disabled{% endif %}>
+                                        <i class="bi bi-stop-circle me-1"></i>Clôturer vote
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        
+                        <form action="/gestionnaire/subject/{{ active_subject.id }}/abandon_vote" method="post">
+                            <button type="submit" class="btn btn-danger w-100" {% if not active_subject.vote_active %}disabled{% endif %}>
+                                <i class="bi bi-x-circle me-2"></i>Abandonner vote
+                            </button>
+                        </form>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-arrow-left-circle text-muted" style="font-size: 2rem;"></i>
+                        <p class="text-muted mt-2">Veuillez sélectionner un sujet à gauche pour gérer ses paramètres.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modifier un sujet</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center">Modifier le sujet</h1>
+        {% if error %}
+            <div class="alert alert-danger" role="alert">
+                {{ error }}
+            </div>
+        {% endif %}
+        {% if message %}
+            <div class="alert alert-success" role="alert">
+                {{ message }}
+            </div>
+        {% endif %}
+        <form action="/superadmin/subjects/{{ subject.id }}/edit" method="post">
+            <div class="mb-3">
+                <label for="name" class="form-label">Nom du sujet</label>
+                <input type="text" class="form-control" id="name" name="name" value="{{ subject.name }}" required>
+            </div>
+            <div class="mb-3">
+                <label for="description" class="form-label">Description</label>
+                <textarea class="form-control" id="description" name="description" rows="3">{{ subject.description or '' }}</textarea>
+            </div>
+            <div class="mb-3">
+                <label for="gestionnaires_ids" class="form-label">Gestionnaires (sélectionnez un ou plusieurs)</label>
+                <select multiple class="form-control" id="gestionnaires_ids" name="gestionnaires_ids">
+                    {% for user in users %}
+                        <option value="{{ user.id }}" {% if user.id|string in subject.gestionnaires_ids %}selected{% endif %}>
+                            {{ user.email }} ({{ user.prenom }} {{ user.nom }})
+                        </option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">Maintenez Ctrl (ou Cmd) enfoncé pour sélectionner plusieurs gestionnaires</div>
+            </div>
+            <button type="submit" class="btn btn-primary">Mettre à jour le sujet</button>
+            <a href="/superadmin/dashboard" class="btn btn-secondary">Annuler</a>
+        </form>
+        <p class="mt-3 text-center"><a href="/superadmin/dashboard">Retour au tableau de bord</a></p>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

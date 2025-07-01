@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}Idées pour {{ subject.name }}{% endblock %}
+
+{% block content %}
+<!-- Messages de notification -->
+{% if error %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>{{ error }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="bi bi-lightbulb me-2"></i>{{ subject.name }}
+        </h1>
+        <p class="text-muted mb-0">{{ subject.description }}</p>
+    </div>
+    <div class="text-end">
+        <span class="badge bg-primary fs-6">{{ ideas|length }} idée(s)</span>
+    </div>
+</div>
+
+<!-- Statut de l'émission et du vote -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center">
+                {% if subject.emission_active %}
+                    <i class="bi bi-play-circle text-success" style="font-size: 2rem;"></i>
+                    <h6 class="text-success mt-2">Émission d'idées active</h6>
+                {% else %}
+                    <i class="bi bi-pause-circle text-muted" style="font-size: 2rem;"></i>
+                    <h6 class="text-muted mt-2">Émission d'idées inactive</h6>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center">
+                {% if subject.vote_active %}
+                    <i class="bi bi-hand-thumbs-up text-primary" style="font-size: 2rem;"></i>
+                    <h6 class="text-primary mt-2">Vote actif</h6>
+                {% else %}
+                    <i class="bi bi-hand-thumbs-up text-muted" style="font-size: 2rem;"></i>
+                    <h6 class="text-muted mt-2">Vote inactif</h6>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Formulaire de soumission d'idée -->
+{% if subject.emission_active %}
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="bi bi-plus-circle me-2"></i>Soumettre une nouvelle idée
+            </h6>
+        </div>
+        <div class="card-body">
+            <form action="/user/subject/{{ subject.id }}/ideas/create" method="post">
+                <div class="mb-3">
+                    <label for="title" class="form-label">Titre de l'idée</label>
+                    <input type="text" class="form-control" id="title" name="title" required placeholder="Donnez un titre accrocheur à votre idée...">
+                </div>
+                <div class="mb-3">
+                    <label for="description" class="form-label">Description</label>
+                    <textarea class="form-control" id="description" name="description" rows="4" placeholder="Décrivez votre idée en détail..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-send me-2"></i>Soumettre l'idée
+                </button>
+            </form>
+        </div>
+    </div>
+{% else %}
+    <div class="alert alert-info d-flex align-items-center" role="alert">
+        <i class="bi bi-info-circle me-3" style="font-size: 1.5rem;"></i>
+        <div>
+            <strong>Émission d'idées inactive</strong><br>
+            L'émission d'idées n'est pas active pour ce sujet. Consultez les idées existantes en attendant.
+        </div>
+    </div>
+{% endif %}
+
+<!-- Liste des idées existantes -->
+<div class="card shadow">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-success">
+            <i class="bi bi-collection me-2"></i>Idées existantes
+            <span class="badge bg-success ms-2">{{ ideas|length }}</span>
+        </h6>
+    </div>
+    <div class="card-body">
+        {% if ideas %}
+            <div class="row">
+                {% for idea in ideas %}
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-body">
+                                <h6 class="card-title text-primary">{{ idea.title }}</h6>
+                                <p class="card-text text-muted small">{{ idea.description }}</p>
+                            </div>
+                            <div class="card-footer bg-transparent">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">
+                                        <i class="bi bi-calendar me-1"></i>{{ idea.created_at.strftime('%d/%m/%Y %H:%M') }}
+                                    </small>
+                                    <div class="d-flex align-items-center">
+                                        <span class="badge bg-light text-dark me-2">
+                                            <i class="bi bi-heart-fill text-danger me-1"></i>{{ idea.votes | length }}
+                                        </span>
+                                        {% if subject.vote_active %}
+                                            <form action="/user/idea/{{ idea.id }}/vote" method="post" class="d-inline">
+                                                <button type="submit" class="btn btn-sm {% if current_user_id in idea.votes %}btn-success{% else %}btn-outline-primary{% endif %}">
+                                                    <i class="bi bi-heart{% if current_user_id in idea.votes %}-fill{% endif %} me-1"></i>
+                                                    {% if current_user_id in idea.votes %}Voté{% else %}Voter{% endif %}
+                                                </button>
+                                            </form>
+                                        {% else %}
+                                            <span class="badge bg-secondary">
+                                                <i class="bi bi-lock me-1"></i>Vote fermé
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-lightbulb text-muted" style="font-size: 3rem;"></i>
+                <h5 class="text-muted mt-3">Aucune idée pour le moment</h5>
+                <p class="text-muted">
+                    {% if subject.emission_active %}
+                        Soyez le premier à proposer une idée pour ce sujet !
+                    {% else %}
+                        Les idées apparaîtront ici une fois l'émission activée.
+                    {% endif %}
+                </p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="text-center mt-4">
+    <a href="/user/dashboard" class="btn btn-secondary">
+        <i class="bi bi-arrow-left me-2"></i>Retour au tableau de bord
+    </a>
+</div>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Tableau de bord Superadmin{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="text-center">Tableau de bord Superadmin</h1>
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">Gestion des utilisateurs</div>
+                <div class="card-body">
+                    <a href="/superadmin/users/add" class="btn btn-primary">Ajouter un utilisateur</a>
+                    <a href="/superadmin/users/import" class="btn btn-secondary">Importer des utilisateurs (CSV)</a>
+                    <h5 class="mt-4">Utilisateurs existants:</h5>
+                    <ul class="list-group">
+                        {% for user in users %}
+                            <li class="list-group-item">{{ user.email }} ({{ user.roles | join(', ') }})</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">Gestion des sujets</div>
+                <div class="card-body">
+                    <a href="/superadmin/subjects/create" class="btn btn-primary">Créer un nouveau sujet</a>
+                    <h5 class="mt-4">Sujets existants:</h5>
+                    <ul class="list-group">
+                        {% for subject in subjects %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ subject.name }}</strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        Gestionnaires: 
+                                        {% for gestionnaire_id in subject.gestionnaires_ids %}
+                                            {{ gestionnaire_id }}{% if not loop.last %}, {% endif %}
+                                        {% else %}
+                                            Aucun gestionnaire assigné
+                                        {% endfor %}
+                                    </small>
+                                </div>
+                                <a href="/superadmin/subjects/{{ subject.id }}/edit" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil"></i> Modifier
+                                </a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

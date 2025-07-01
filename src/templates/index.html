@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Accueil - Boîte à Idées{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <!-- Hero Section -->
+        <div class="text-center mb-5">
+            <div class="mb-4">
+                <i class="bi bi-lightbulb-fill text-primary" style="font-size: 4rem;"></i>
+            </div>
+            <h1 class="display-4 fw-bold text-dark mb-3">Bienvenue dans la Boîte à Idées</h1>
+            <p class="lead text-muted mb-4">
+                Votre plateforme collaborative pour partager, développer et voter pour les meilleures idées.
+                Rejoignez notre communauté d'innovateurs !
+            </p>
+        </div>
+
+        {% if not current_user %}
+        <!-- Section pour les visiteurs non connectés -->
+        <div class="row g-4 mb-5">
+            <div class="col-md-6">
+                <div class="card h-100 border-primary">
+                    <div class="card-body text-center">
+                        <i class="bi bi-person-plus-fill text-primary mb-3" style="font-size: 2.5rem;"></i>
+                        <h5 class="card-title">Créer un compte</h5>
+                        <p class="card-text">Rejoignez notre communauté et commencez à partager vos idées innovantes.</p>
+                        <a href="/auth/register" class="btn btn-primary">
+                            <i class="bi bi-person-plus me-2"></i>S'inscrire
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100 border-success">
+                    <div class="card-body text-center">
+                        <i class="bi bi-box-arrow-in-right text-success mb-3" style="font-size: 2.5rem;"></i>
+                        <h5 class="card-title">Se connecter</h5>
+                        <p class="card-text">Vous avez déjà un compte ? Connectez-vous pour accéder à vos sujets.</p>
+                        <a href="/auth/login" class="btn btn-success">
+                            <i class="bi bi-box-arrow-in-right me-2"></i>Connexion
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fonctionnalités -->
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="text-center">
+                    <div class="bg-primary bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
+                        <i class="bi bi-lightbulb text-primary" style="font-size: 2rem;"></i>
+                    </div>
+                    <h5>Partagez vos idées</h5>
+                    <p class="text-muted">Proposez vos innovations et concepts créatifs à votre équipe.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-center">
+                    <div class="bg-success bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
+                        <i class="bi bi-hand-thumbs-up text-success" style="font-size: 2rem;"></i>
+                    </div>
+                    <h5>Votez pour les meilleures</h5>
+                    <p class="text-muted">Participez au processus de sélection en votant pour vos idées préférées.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-center">
+                    <div class="bg-info bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 80px; height: 80px;">
+                        <i class="bi bi-people text-info" style="font-size: 2rem;"></i>
+                    </div>
+                    <h5>Collaborez ensemble</h5>
+                    <p class="text-muted">Travaillez en équipe pour développer et améliorer les concepts.</p>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <!-- Section pour les utilisateurs connectés -->
+        <div class="alert alert-info border-0" role="alert">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-info-circle-fill me-3" style="font-size: 1.5rem;"></i>
+                <div>
+                    <h6 class="alert-heading mb-1">Bienvenue {{ current_user.prenom }} !</h6>
+                    <p class="mb-0">Vous êtes connecté et prêt à partager vos idées.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="card border-0 h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-person-workspace text-primary mb-3" style="font-size: 3rem;"></i>
+                        <h5 class="card-title">Mes Sujets</h5>
+                        <p class="card-text">Accédez à vos sujets assignés et gérez vos idées.</p>
+                        {% if "superadmin" in current_user.roles %}
+                            <a href="/superadmin/dashboard" class="btn btn-primary">
+                                <i class="bi bi-speedometer2 me-2"></i>Administration
+                            </a>
+                        {% elif "gestionnaire" in current_user.roles %}
+                            <a href="/gestionnaire/dashboard" class="btn btn-primary">
+                                <i class="bi bi-kanban me-2"></i>Gestion
+                            </a>
+                        {% else %}
+                            <a href="/user/dashboard" class="btn btn-primary">
+                                <i class="bi bi-person-workspace me-2"></i>Mes Sujets
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card border-0 h-100">
+                    <div class="card-body text-center">
+                        <i class="bi bi-lightbulb text-success mb-3" style="font-size: 3rem;"></i>
+                        <h5 class="card-title">Nouvelles Idées</h5>
+                        <p class="card-text">Explorez les dernières idées soumises par la communauté.</p>
+                        <a href="/user/dashboard" class="btn btn-success">
+                            <i class="bi bi-search me-2"></i>Explorer
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

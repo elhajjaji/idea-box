@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+
+{% block title %}Gérer les utilisateurs - {{ subject.name }}{% endblock %}
+
+{% block content %}
+<!-- Messages de notification -->
+{% if request.session.get('success_message') %}
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i>{{ request.session.pop('success_message') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+{% endif %}
+
+{% if request.session.get('error_message') %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>{{ request.session.pop('error_message') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-gray-800">
+        <i class="bi bi-people me-2"></i>Gérer les utilisateurs
+    </h1>
+    <div class="text-muted">
+        Sujet: <strong>{{ subject.name }}</strong>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Utilisateurs attribués -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-success">
+                    <i class="bi bi-people-fill me-2"></i>Utilisateurs attribués au sujet
+                    <span class="badge bg-success ms-2">{{ subject_users|length }}</span>
+                </h6>
+                <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                    <i class="bi bi-person-plus me-1"></i>Ajouter
+                </button>
+            </div>
+            <div class="card-body">
+                {% if subject_users %}
+                    <div class="list-group list-group-flush">
+                        {% for user in subject_users %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ user.email }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ user.prenom }} {{ user.nom }}</small>
+                                </div>
+                                <form action="/gestionnaire/subject/{{ subject.id }}/remove_user" method="post">
+                                    <input type="hidden" name="user_id" value="{{ user.id }}">
+                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Êtes-vous sûr de retirer cet utilisateur du sujet ?')">
+                                        <i class="bi bi-person-dash me-1"></i>Retirer
+                                    </button>
+                                </form>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-person-x text-muted" style="font-size: 2rem;"></i>
+                        <p class="text-muted mt-2">Aucun utilisateur attribué à ce sujet</p>
+                        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                            <i class="bi bi-person-plus me-2"></i>Ajouter le premier utilisateur
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Actions rapides -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="bi bi-lightning me-2"></i>Actions rapides
+                </h6>
+            </div>
+            <div class="card-body">
+                <!-- Ajout rapide d'utilisateur -->
+                <div class="mb-4">
+                    <h6><i class="bi bi-person-plus-fill me-2"></i>Créer et ajouter un utilisateur</h6>
+                    <form action="/gestionnaire/subject/{{ subject.id }}/create_and_add_user" method="post" class="row g-2">
+                        <div class="col-md-6">
+                            <input type="email" class="form-control form-control-sm" name="email" placeholder="Email" required>
+                        </div>
+                        <div class="col-md-3">
+                            <input type="text" class="form-control form-control-sm" name="prenom" placeholder="Prénom" required>
+                        </div>
+                        <div class="col-md-3">
+                            <input type="text" class="form-control form-control-sm" name="nom" placeholder="Nom" required>
+                        </div>
+                        <div class="col-12">
+                            <input type="password" class="form-control form-control-sm" name="password" placeholder="Mot de passe" required>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary btn-sm w-100">
+                                <i class="bi bi-person-plus me-1"></i>Créer et ajouter
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <hr>
+
+                <!-- Import CSV -->
+                <div class="mb-3">
+                    <h6><i class="bi bi-file-earmark-arrow-up me-2"></i>Import en lot</h6>
+                    <button class="btn btn-info w-100" data-bs-toggle="modal" data-bs-target="#importUsersModal">
+                        <i class="bi bi-upload me-2"></i>Importer des utilisateurs (CSV)
+                    </button>
+                </div>
+
+                <hr>
+
+                <!-- Statistiques -->
+                <div class="text-center">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h4 class="text-success">{{ subject_users|length }}</h4>
+                            <small class="text-muted">Attribués</small>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="text-primary">{{ available_users|length }}</h4>
+                            <small class="text-muted">Disponibles</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="text-center mt-4">
+    <a href="/gestionnaire/dashboard" class="btn btn-secondary">
+        <i class="bi bi-arrow-left me-2"></i>Retour au tableau de bord
+    </a>
+</div>
+
+<!-- Modal d'ajout d'utilisateur avec autocomplétion -->
+<div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addUserModalLabel">
+                    <i class="bi bi-person-plus me-2"></i>Ajouter des utilisateurs au sujet
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Recherche avec autocomplétion -->
+                <div class="mb-3">
+                    <label for="userSearch" class="form-label">Rechercher un utilisateur</label>
+                    <input type="text" class="form-control" id="userSearch" placeholder="Tapez l'email ou le nom...">
+                    <div id="searchResults" class="mt-2"></div>
+                </div>
+
+                <hr>
+
+                <!-- Liste de tous les utilisateurs disponibles -->
+                <div class="mb-3">
+                    <h6>Tous les utilisateurs disponibles :</h6>
+                    <div style="max-height: 300px; overflow-y: auto;">
+                        {% if available_users %}
+                            {% for user in available_users %}
+                                <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
+                                    <div>
+                                        <strong>{{ user.email }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ user.prenom }} {{ user.nom }}</small>
+                                    </div>
+                                    <button class="btn btn-success btn-sm" onclick="addUserToSubject('{{ user.id }}', '{{ user.email }}')">
+                                        <i class="bi bi-person-plus me-1"></i>Ajouter
+                                    </button>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted text-center">Tous les utilisateurs sont déjà attribués à ce sujet</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal d'import CSV -->
+<div class="modal fade" id="importUsersModal" tabindex="-1" aria-labelledby="importUsersModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importUsersModalLabel">
+                    <i class="bi bi-file-earmark-arrow-up me-2"></i>Importer des utilisateurs
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="/gestionnaire/subject/{{ subject.id }}/import_users" method="post" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Fichier CSV</label>
+                        <input type="file" class="form-control" id="file" name="file" accept=".csv" required>
+                        <div class="form-text">
+                            Le fichier CSV doit contenir les colonnes : email, prenom, nom, password
+                        </div>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Format attendu :</strong><br>
+                        <code>email,prenom,nom,password<br>user1@example.com,John,Doe,password123<br>user2@example.com,Jane,Smith,password456</code>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-upload me-2"></i>Importer et ajouter au sujet
+                    </button>
+                </div>
+                </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Variables globales
+const subjectId = '{{ subject.id }}';
+const availableUsers = {{ available_users_dict | tojson }};
+
+// Autocomplétion pour la recherche d'utilisateurs
+document.getElementById('userSearch').addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase();
+    const searchResults = document.getElementById('searchResults');
+    
+    if (searchTerm.length < 2) {
+        searchResults.innerHTML = '';
+        return;
+    }
+    
+    const filteredUsers = availableUsers.filter(user => 
+        user.email.toLowerCase().includes(searchTerm) ||
+        user.prenom.toLowerCase().includes(searchTerm) ||
+        user.nom.toLowerCase().includes(searchTerm)
+    );
+    
+    if (filteredUsers.length > 0) {
+        searchResults.innerHTML = filteredUsers.map(user => `
+            <div class="d-flex justify-content-between align-items-center p-2 border rounded mb-1 bg-light">
+                <div>
+                    <strong>${user.email}</strong>
+                    <br>
+                    <small class="text-muted">${user.prenom} ${user.nom}</small>
+                </div>
+                <button class="btn btn-success btn-sm" onclick="addUserToSubject('${user.id}', '${user.email}')">
+                    <i class="bi bi-person-plus me-1"></i>Ajouter
+                </button>
+            </div>
+        `).join('');
+    } else {
+        searchResults.innerHTML = '<p class="text-muted">Aucun utilisateur trouvé</p>';
+    }
+});
+
+// Fonction pour ajouter un utilisateur au sujet
+function addUserToSubject(userId, userEmail) {
+    // Créer un formulaire temporaire pour soumettre la requête
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/gestionnaire/subject/${subjectId}/add_user`;
+    
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'user_id';
+    input.value = userId;
+    
+    form.appendChild(input);
+    document.body.appendChild(form);
+    form.submit();
+}
+</script>
+{% endblock %}
