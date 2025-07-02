@@ -89,54 +89,48 @@
 
 <!-- Liste des idées existantes -->
 <div class="card shadow">
-    <div class="card-header py-3">
-        <h6 class="m-0 font-weight-bold text-success">
-            <i class="bi bi-collection me-2"></i>Idées existantes
-            <span class="badge bg-success ms-2">{{ ideas|length }}</span>
+    <div class="card-header py-3 d-flex justify-content-between align-items-center bg-light">
+        <h6 class="m-0 font-weight-bold text-primary">
+            <i class="bi bi-collection me-2"></i>Idées proposées
         </h6>
+        <span class="badge bg-primary rounded-pill">{{ ideas|length }}</span>
     </div>
-    <div class="card-body">
+    <div class="card-body p-0">
         {% if ideas %}
-            <div class="row">
+            <ul class="list-group list-group-flush">
                 {% for idea in ideas %}
-                    <div class="col-md-6 col-lg-4 mb-4">
-                        <div class="card h-100 border-0 shadow-sm">
-                            <div class="card-body">
-                                <h6 class="card-title text-primary">{{ idea.title }}</h6>
-                                <p class="card-text text-muted small">{{ idea.description }}</p>
-                            </div>
-                            <div class="card-footer bg-transparent">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <small class="text-muted">
-                                        <i class="bi bi-calendar me-1"></i>{{ idea.created_at.strftime('%d/%m/%Y %H:%M') }}
-                                    </small>
-                                    <div class="d-flex align-items-center">
-                                        <span class="badge bg-light text-dark me-2">
-                                            <i class="bi bi-heart-fill text-danger me-1"></i>{{ idea.votes | length }}
-                                        </span>
-                                        {% if subject.vote_active %}
-                                            <form action="/user/idea/{{ idea.id }}/vote" method="post" class="d-inline">
-                                                <button type="submit" class="btn btn-sm {% if current_user_id in idea.votes %}btn-success{% else %}btn-outline-primary{% endif %}">
-                                                    <i class="bi bi-heart{% if current_user_id in idea.votes %}-fill{% endif %} me-1"></i>
-                                                    {% if current_user_id in idea.votes %}Voté{% else %}Voter{% endif %}
-                                                </button>
-                                            </form>
-                                        {% else %}
-                                            <span class="badge bg-secondary">
-                                                <i class="bi bi-lock me-1"></i>Vote fermé
-                                            </span>
-                                        {% endif %}
-                                    </div>
-                                </div>
+                <li class="list-group-item p-3">
+                    <div class="d-flex w-100 justify-content-between">
+                        <div>
+                            <h5 class="mb-1 text-dark">{{ idea.title }}</h5>
+                            <p class="mb-1 text-muted">{{ idea.description }}</p>
+                            <small class="text-muted">
+                                <i class="bi bi-person-circle me-1"></i>Proposé par ... 
+                                <i class="bi bi-calendar3 ms-2 me-1"></i>{{ idea.created_at.strftime('%d/%m/%Y') }}
+                            </small>
+                        </div>
+                        <div class="text-end ms-4">
+                            <div class="d-flex flex-column align-items-center">
+                                <span class="badge bg-danger rounded-pill fs-6 mb-2">{{ idea.votes | length }}</span>
+                                {% if subject.vote_active %}
+                                    <form action="/user/idea/{{ idea.id }}/vote" method="post" class="d-inline">
+                                        <button type="submit" class="btn btn-sm {% if current_user.id|string in idea.votes %}btn-danger{% else %}btn-outline-danger{% endif %}">
+                                            <i class="bi bi-heart-fill"></i>
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <span class="badge bg-secondary"><i class="bi bi-lock-fill"></i></span>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
+                </li>
                 {% endfor %}
-            </div>
+            </ul>
         {% else %}
             <div class="text-center py-5">
-                <i class="bi bi-lightbulb text-muted" style="font-size: 3rem;"></i>
-                <h5 class="text-muted mt-3">Aucune idée pour le moment</h5>
+                <i class="bi bi-lightbulb-off text-muted" style="font-size: 3rem;"></i>
+                <h5 class="mt-3 text-muted">Aucune idée pour le moment</h5>
                 <p class="text-muted">
                     {% if subject.emission_active %}
                         Soyez le premier à proposer une idée pour ce sujet !

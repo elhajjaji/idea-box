@@ -13,6 +13,11 @@ class Subject(Model):
     vote_active: bool = False
     vote_limit: int = 1 # Number of votes per user
 
+    # Attributs pour les statistiques (non stockés en DB)
+    ideas_count: Optional[int] = 0
+    votes_count: Optional[int] = 0
+    user_ideas_count: Optional[int] = 0
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {

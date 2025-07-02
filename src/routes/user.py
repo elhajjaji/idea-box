@@ -11,6 +11,7 @@ from src.services.auth_service import get_current_user
 from src.services.subject_service import get_subject
 from src.services.idea_service import create_idea, get_ideas_by_subject, add_vote_to_idea, remove_vote_from_idea
 from src.services.database import Database
+from src.services.stats_service import get_user_dashboard_stats
 
 router = APIRouter()
 
@@ -24,43 +25,12 @@ async def get_current_normal_user(current_user: User = Depends(get_current_user)
 @router.get("/user/dashboard", response_class=HTMLResponse)
 async def user_dashboard(request: Request, current_user: User = Depends(get_current_normal_user)):
     try:
-        # Récupérer les sujets de l'utilisateur
-        user_subjects = await Database.engine.find(Subject, {
-            "$or": [
-                {"users_ids": {"$in": [str(current_user.id)]}},
-                {"gestionnaires_ids": {"$in": [str(current_user.id)]}}
-            ]
-        })
-        
-        # Calculer les statistiques pour chaque sujet
-        subjects_stats = {}
-        for subject in user_subjects:
-            # Récupérer les idées du sujet
-            subject_ideas = await get_ideas_by_subject(str(subject.id))
-            
-            # Calculer les statistiques pour ce sujet
-            total_votes = sum(len(idea.votes) for idea in subject_ideas)
-            user_ideas = [idea for idea in subject_ideas if idea.user_id == str(current_user.id)]
-            
-            subjects_stats[str(subject.id)] = {
-                'ideas_count': len(subject_ideas),
-                'votes_count': total_votes,
-                'user_ideas_count': len(user_ideas)
-            }
-        
-        # Statistiques globales utilisateur
-        user_stats = {
-            'subjects_count': len(user_subjects),
-            'user_ideas_count': sum(stats['user_ideas_count'] for stats in subjects_stats.values()),
-            'user_votes_count': 0,  # À implémenter selon vos besoins
-            'pending_count': 0  # À implémenter selon vos besoins
-        }
+        user_subjects, user_stats = await get_user_dashboard_stats(current_user)
         
         return templates.TemplateResponse("user/dashboard.html", {
             "request": request,
             "current_user": current_user,
             "user_subjects": user_subjects,
-            "subjects_stats": subjects_stats,
             "user_stats": user_stats
         })
     
@@ -70,7 +40,6 @@ async def user_dashboard(request: Request, current_user: User = Depends(get_curr
             "request": request,
             "current_user": current_user,
             "user_subjects": [],
-            "subjects_stats": {},
             "user_stats": {
                 'subjects_count': 0,
                 'user_ideas_count': 0,
@@ -87,7 +56,7 @@ async def subject_ideas(subject_id: str, request: Request, current_user: User = 
     
     ideas = await get_ideas_by_subject(subject_id)
     
-    return templates.TemplateResponse("user/subject_ideas.html", {"request": request, "subject": subject, "ideas": ideas, "current_user_id": str(current_user.id)})
+    return templates.TemplateResponse("user/subject_ideas.html", {"request": request, "subject": subject, "ideas": ideas, "current_user": current_user, "show_sidebar": True})
 
 @router.post("/user/subject/{subject_id}/ideas/create", response_class=HTMLResponse)
 async def create_new_idea(subject_id: str, request: Request, title: str = Form(...), description: Optional[str] = Form(None), current_user: User = Depends(get_current_normal_user)):
@@ -96,7 +65,7 @@ async def create_new_idea(subject_id: str, request: Request, title: str = Form(.
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sujet non trouvé ou vous n'êtes pas attribué à ce sujet.")
     
     if not subject.emission_active:
-        return templates.TemplateResponse("user/subject_ideas.html", {"request": request, "subject": subject, "ideas": await get_ideas_by_subject(subject_id), "current_user_id": str(current_user.id), "error": "L'émission d'idées n'est pas active pour ce sujet."})
+        return templates.TemplateResponse("user/subject_ideas.html", {"request": request, "subject": subject, "ideas": await get_ideas_by_subject(subject_id), "current_user": current_user, "error": "L'émission d'idées n'est pas active pour ce sujet."})
 
     idea = Idea(subject_id=subject_id, user_id=str(current_user.id), title=title, description=description)
     await create_idea(idea)
@@ -113,7 +82,7 @@ async def vote_for_idea(idea_id: str, request: Request, current_user: User = Dep
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Vous n'êtes pas autorisé à voter pour cette idée.")
 
     if not subject.vote_active:
-        return templates.TemplateResponse("user/subject_ideas.html", {"request": request, "subject": subject, "ideas": await get_ideas_by_subject(subject.id), "current_user_id": str(current_user.id), "error": "La session de vote n'est pas active pour ce sujet."})
+        return templates.TemplateResponse("user/subject_ideas.html", {"request": request, "subject": subject, "ideas": await get_ideas_by_subject(subject.id), "current_user": current_user, "error": "La session de vote n'est pas active pour ce sujet."})
 
     # Check vote limit
     user_votes_count = 0
@@ -122,7 +91,7 @@ async def vote_for_idea(idea_id: str, request: Request, current_user: User = Dep
             user_votes_count += 1
     
     if user_votes_count >= subject.vote_limit and str(current_user.id) not in idea.votes:
-        return templates.TemplateResponse("user/subject_ideas.html", {"request": request, "subject": subject, "ideas": await get_ideas_by_subject(subject.id), "current_user_id": str(current_user.id), "error": f"Vous avez atteint votre limite de {subject.vote_limit} votes pour ce sujet."})
+        return templates.TemplateResponse("user/subject_ideas.html", {"request": request, "subject": subject, "ideas": await get_ideas_by_subject(subject.id), "current_user": current_user, "error": f"Vous avez atteint votre limite de {subject.vote_limit} votes pour ce sujet."})
 
     if str(current_user.id) in idea.votes:
         await remove_vote_from_idea(idea_id, str(current_user.id))
