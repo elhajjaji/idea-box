@@ -60,6 +60,12 @@ async def deactivate_emission(subject_id: str) -> Optional[Subject]:
 async def activate_vote(subject_id: str) -> Optional[Subject]:
     subject = await get_subject(subject_id)
     if subject:
+        # Vérifier qu'il y a des idées avant d'activer le vote
+        from src.services.idea_service import get_ideas_by_subject
+        ideas = await get_ideas_by_subject(subject_id)
+        if not ideas:
+            return None  # Pas d'idées, ne pas activer le vote
+        
         subject.vote_active = True
         subject.emission_active = False # Emission and vote cannot be active at the same time
         await Database.engine.save(subject)

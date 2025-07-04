@@ -44,7 +44,21 @@ async def gestionnaire_dashboard(request: Request, current_user: User = Depends(
 @router.get("/gestionnaire/subjects", response_class=HTMLResponse)
 async def gestionnaire_subjects(request: Request, current_user: User = Depends(get_current_gestionnaire)):
     subjects = await get_subjects_by_gestionnaire(str(current_user.id))
-    return templates.TemplateResponse("gestionnaire/subjects.html", {"request": request, "subjects": subjects, "current_user": current_user, "show_sidebar": True})
+    
+    # Récupérer le nombre d'idées pour chaque sujet
+    from src.services.idea_service import get_ideas_by_subject
+    subjects_with_ideas = []
+    for subject in subjects:
+        ideas = await get_ideas_by_subject(str(subject.id))
+        subject.ideas_count = len(ideas)
+        subjects_with_ideas.append(subject)
+    
+    return templates.TemplateResponse("gestionnaire/subjects.html", {
+        "request": request, 
+        "subjects": subjects_with_ideas, 
+        "current_user": current_user, 
+        "show_sidebar": True
+    })
 
 @router.get("/gestionnaire/users", response_class=HTMLResponse)
 async def gestionnaire_users(request: Request, current_user: User = Depends(get_current_gestionnaire)):
@@ -94,6 +108,12 @@ async def manage_subject_users_form(subject_id: str, request: Request, current_u
     all_users = await get_users()
     subject_users = [user for user in all_users if str(user.id) in subject.users_ids]
     available_users = [user for user in all_users if str(user.id) not in subject.users_ids]
+    
+    # Récupérer les gestionnaires du sujet
+    subject_managers = [user for user in all_users if str(user.id) in subject.gestionnaires_ids]
+    
+    # Récupérer les utilisateurs qui peuvent devenir gestionnaires (tous les utilisateurs existants sauf ceux déjà gestionnaires de ce sujet)
+    potential_managers = [user for user in all_users if str(user.id) not in subject.gestionnaires_ids]
 
     # Convertir les objets User en dictionnaires pour la sérialisation JSON
     available_users_dict = [
@@ -110,7 +130,9 @@ async def manage_subject_users_form(subject_id: str, request: Request, current_u
         "request": request, 
         "subject": subject, 
         "subject_users": subject_users, 
+        "subject_managers": subject_managers,
         "available_users": available_users,
+        "potential_managers": potential_managers,
         "available_users_dict": available_users_dict,
         "current_user": current_user,
         "show_sidebar": True
@@ -248,7 +270,20 @@ async def deactivate_emission_route(subject_id: str, request: Request, current_u
 async def activate_vote_route(subject_id: str, request: Request, current_user: User = Depends(get_current_gestionnaire)):
     subject = await activate_vote(subject_id)
     if not subject:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Impossible d'activer la session de vote.")
+        # Vérifier si c'est à cause du manque d'idées
+        from src.services.idea_service import get_ideas_by_subject
+        ideas = await get_ideas_by_subject(subject_id)
+        if not ideas:
+            request.session["error_message"] = "Impossible d'activer le vote : aucune idée n'a été soumise pour ce sujet."
+        else:
+            request.session["error_message"] = "Impossible d'activer la session de vote."
+        
+        # Redirection vers la page d'origine
+        referer = request.headers.get("referer", "/gestionnaire/subjects")
+        if "subjects" in referer:
+            return RedirectResponse(url="/gestionnaire/subjects", status_code=status.HTTP_303_SEE_OTHER)
+        else:
+            return RedirectResponse(url="/gestionnaire/dashboard", status_code=status.HTTP_303_SEE_OTHER)
     
     # Log de l'activité
     await log_activity(
@@ -259,6 +294,8 @@ async def activate_vote_route(subject_id: str, request: Request, current_user: U
         details="Émission d'idées automatiquement désactivée",
         request=request
     )
+    
+    request.session["success_message"] = f"Session de vote activée pour le sujet '{subject.name}'."
     
     # Redirection vers la page d'origine ou par défaut vers /gestionnaire/subjects
     referer = request.headers.get("referer", "/gestionnaire/subjects")
@@ -532,22 +569,207 @@ async def batch_activate_vote(request: Request, subject_ids: List[str] = Form(..
     
     return RedirectResponse(url="/gestionnaire/subjects", status_code=status.HTTP_303_SEE_OTHER)
 
-# Route pour afficher l'historique d'un sujet
-@router.get("/gestionnaire/subject/{subject_id}/history", response_class=HTMLResponse)
-async def subject_history(subject_id: str, request: Request, current_user: User = Depends(get_current_gestionnaire)):
+# Route pour la page de gestion/modification d'un sujet
+@router.get("/gestionnaire/subject/{subject_id}/manage", response_class=HTMLResponse)
+async def manage_subject(subject_id: str, request: Request, current_user: User = Depends(get_current_gestionnaire)):
     """
-    Affiche l'historique des activités pour un sujet donné
+    Page de gestion/modification d'un sujet avec ses idées
     """
     subject = await get_subject(subject_id)
     if not subject or str(current_user.id) not in subject.gestionnaires_ids:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sujet non trouvé ou vous n'êtes pas gestionnaire de ce sujet.")
     
-    activities = await get_subject_activities(subject_id, limit=100)
+    # Récupérer les idées du sujet
+    from src.services.idea_service import get_ideas_by_subject
+    from src.services.user_service import get_user
+    ideas = await get_ideas_by_subject(subject_id)
+    
+    # Convertir les idées en dictionnaires enrichis
+    enriched_ideas = []
+    for idea in ideas:
+        # Récupérer l'auteur de l'idée
+        author = await get_user(idea.user_id)
+        author_name = f"{author.prenom} {author.nom}" if author else "Utilisateur inconnu"
+        
+        # S'assurer que description n'est jamais None
+        description_content = idea.description if idea.description is not None else ""
+        
+        # Créer un dictionnaire avec toutes les informations
+        idea_dict = {
+            "id": str(idea.id),
+            "title": idea.title,
+            "content": description_content,  # Mapping description -> content pour le template
+            "description": description_content,  # Garder aussi description pour compatibilité
+            "author_name": author_name,
+            "author_id": idea.user_id,
+            "votes_count": len(idea.votes),
+            "votes": idea.votes,
+            "created_at": idea.created_at,
+            "subject_id": idea.subject_id
+        }
+        
+        enriched_ideas.append(idea_dict)
+    
+    return templates.TemplateResponse("gestionnaire/manage_subject.html", {
+        "request": request,
+        "subject": subject,
+        "ideas": enriched_ideas,
+        "current_user": current_user,
+        "show_sidebar": True
+    })
+
+# Route pour modifier une idée
+@router.post("/gestionnaire/subject/{subject_id}/edit_idea/{idea_id}")
+async def edit_idea(
+    subject_id: str, 
+    idea_id: str,
+    request: Request,
+    title: str = Form(...),
+    content: str = Form(...),  # Le formulaire envoie 'content'
+    current_user: User = Depends(get_current_gestionnaire)
+):
+    """
+    Modifie le titre et le contenu d'une idée
+    """
+    # Vérifier que l'utilisateur est gestionnaire du sujet
+    subject = await get_subject(subject_id)
+    if not subject or str(current_user.id) not in subject.gestionnaires_ids:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sujet non trouvé ou vous n'êtes pas gestionnaire de ce sujet.")
+    
+    # Récupérer l'idée pour avoir l'ancien contenu pour le log
+    from src.services.idea_service import get_idea, update_idea
+    idea = await get_idea(idea_id)
+    
+    if not idea or idea.subject_id != subject_id:
+        request.session["error_message"] = "Idée non trouvée."
+        return RedirectResponse(url=f"/gestionnaire/subject/{subject_id}/manage", status_code=status.HTTP_303_SEE_OTHER)
+    
+    # Sauvegarder l'ancien contenu pour le log
+    old_title = idea.title
+    old_description = idea.description or ""
+    
+    try:
+        # Utiliser la fonction update_idea du service
+        updated_idea = await update_idea(idea_id, title.strip(), content.strip())
+        
+        if updated_idea:
+            # Log de l'activité
+            await log_activity(
+                action="edit_idea",
+                subject_id=subject_id,
+                user=current_user,
+                description=f"Modification de l'idée '{old_title}' par le gestionnaire",
+                details=f"Ancien titre: '{old_title}' → Nouveau titre: '{title}' | Ancien contenu: '{old_description[:50]}...' → Nouveau contenu: '{content[:50]}...'",
+                request=request
+            )
+            
+            request.session["success_message"] = f"Idée '{title}' modifiée avec succès."
+        else:
+            request.session["error_message"] = "Erreur lors de la modification de l'idée."
+    except Exception as e:
+        request.session["error_message"] = f"Erreur lors de la modification de l'idée: {str(e)}"
+    
+    return RedirectResponse(url=f"/gestionnaire/subject/{subject_id}/manage", status_code=status.HTTP_303_SEE_OTHER)
+
+# Route pour supprimer une idée
+@router.post("/gestionnaire/subject/{subject_id}/delete_idea/{idea_id}")
+async def delete_idea_route(
+    subject_id: str, 
+    idea_id: str,
+    request: Request,
+    current_user: User = Depends(get_current_gestionnaire)
+):
+    """
+    Supprime une idée
+    """
+    # Vérifier que l'utilisateur est gestionnaire du sujet
+    subject = await get_subject(subject_id)
+    if not subject or str(current_user.id) not in subject.gestionnaires_ids:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sujet non trouvé ou vous n'êtes pas gestionnaire de ce sujet.")
+    
+    # Récupérer l'idée pour les logs avant suppression
+    from src.services.idea_service import get_idea, delete_idea
+    idea = await get_idea(idea_id)
+    
+    if not idea or idea.subject_id != subject_id:
+        request.session["error_message"] = "Idée non trouvée."
+        return RedirectResponse(url=f"/gestionnaire/subject/{subject_id}/manage", status_code=status.HTTP_303_SEE_OTHER)
+    
+    # Sauvegarder les informations pour le log
+    idea_title = idea.title
+    idea_content = idea.description or ""
+    
+    try:
+        # Utiliser la fonction delete_idea du service
+        success = await delete_idea(idea_id)
+        
+        if success:
+            # Log de l'activité
+            await log_activity(
+                action="delete_idea",
+                subject_id=subject_id,
+                user=current_user,
+                description=f"Suppression de l'idée '{idea_title}' par le gestionnaire",
+                details=f"Contenu supprimé: '{idea_content[:100]}...'",
+                request=request
+            )
+            
+            request.session["success_message"] = f"Idée '{idea_title}' supprimée avec succès."
+        else:
+            request.session["error_message"] = "Erreur lors de la suppression de l'idée."
+    except Exception as e:
+        request.session["error_message"] = f"Erreur lors de la suppression de l'idée: {str(e)}"
+    
+    return RedirectResponse(url=f"/gestionnaire/subject/{subject_id}/manage", status_code=status.HTTP_303_SEE_OTHER)
+
+# Route pour l'historique d'activité d'un sujet
+@router.get("/gestionnaire/subject/{subject_id}/history", response_class=HTMLResponse)
+async def subject_history(subject_id: str, request: Request, current_user: User = Depends(get_current_gestionnaire)):
+    """
+    Page d'historique d'activité d'un sujet
+    """
+    subject = await get_subject(subject_id)
+    if not subject or str(current_user.id) not in subject.gestionnaires_ids:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sujet non trouvé ou vous n'êtes pas gestionnaire de ce sujet.")
+    
+    # Récupérer l'historique d'activité du sujet
+    activities = await get_subject_activities(subject_id)
+    
+    # Récupérer les statistiques du sujet
+    from src.services.idea_service import get_ideas_by_subject
+    ideas = await get_ideas_by_subject(subject_id)
+    
+    # Calculer les statistiques
+    total_ideas = len(ideas)
+    total_votes = sum(len(idea.votes) for idea in ideas)
+    
+    # Récupérer les utilisateurs du sujet pour les statistiques
+    all_users = await get_users()
+    subject_users = [user for user in all_users if str(user.id) in subject.users_ids]
+    total_users = len(subject_users)
+    
+    # Statistiques par période (dernières 24h, 7 jours, 30 jours)
+    from datetime import datetime, timedelta
+    now = datetime.now()
+    
+    activities_24h = [a for a in activities if a.timestamp >= now - timedelta(hours=24)]
+    activities_7d = [a for a in activities if a.timestamp >= now - timedelta(days=7)]
+    activities_30d = [a for a in activities if a.timestamp >= now - timedelta(days=30)]
+    
+    stats = {
+        "total_ideas": total_ideas,
+        "total_votes": total_votes,
+        "total_users": total_users,
+        "activities_24h": len(activities_24h),
+        "activities_7d": len(activities_7d),
+        "activities_30d": len(activities_30d)
+    }
     
     return templates.TemplateResponse("gestionnaire/subject_history.html", {
         "request": request,
         "subject": subject,
         "activities": activities,
+        "stats": stats,
         "current_user": current_user,
         "show_sidebar": True
     })

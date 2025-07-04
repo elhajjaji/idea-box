@@ -41,7 +41,7 @@ async def get_subject_activities(subject_id: str, limit: int = 50) -> List[Activ
     activities = await Database.engine.find(
         ActivityLog,
         ActivityLog.subject_id == subject_id,
-        sort=[("timestamp", -1)],  # Plus récent en premier
+        sort=ActivityLog.timestamp.desc(),  # Plus récent en premier
         limit=limit
     )
     return activities
@@ -53,7 +53,7 @@ async def get_user_activities(user_id: str, limit: int = 50) -> List[ActivityLog
     activities = await Database.engine.find(
         ActivityLog,
         ActivityLog.user_id == user_id,
-        sort=[("timestamp", -1)],
+        sort=ActivityLog.timestamp.desc(),
         limit=limit
     )
     return activities
@@ -64,7 +64,7 @@ async def get_recent_activities(limit: int = 100) -> List[ActivityLog]:
     """
     activities = await Database.engine.find(
         ActivityLog,
-        sort=[("timestamp", -1)],
+        sort=ActivityLog.timestamp.desc(),
         limit=limit
     )
     return activities

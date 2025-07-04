@@ -89,6 +89,7 @@
                                 <th class="border-0">Description</th>
                                 <th class="border-0 text-center">Émission</th>
                                 <th class="border-0 text-center">Vote</th>
+                                <th class="border-0 text-center">Idées</th>
                                 <th class="border-0 text-center">Utilisateurs</th>
                                 <th class="border-0 text-center">Actions</th>
                             </tr>
@@ -175,16 +176,37 @@
                                                 <i class="bi bi-hand-thumbs-up me-1"></i>Inactive
                                             </span>
                                             {% if not subject.emission_active %}
-                                                <button type="button" class="btn btn-outline-primary btn-sm" 
-                                                        onclick="confirmSingleAction('activate_vote', '{{ subject.id }}', '{{ subject.name }}')" 
-                                                        title="Activer le vote">
-                                                    <i class="bi bi-hand-thumbs-up"></i>
-                                                </button>
+                                                {% if subject.ideas_count > 0 %}
+                                                    <button type="button" class="btn btn-outline-primary btn-sm" 
+                                                            onclick="confirmSingleAction('activate_vote', '{{ subject.id }}', '{{ subject.name }}')" 
+                                                            title="Activer le vote ({{ subject.ideas_count }} idée(s) disponible(s))">
+                                                        <i class="bi bi-hand-thumbs-up"></i>
+                                                    </button>
+                                                {% else %}
+                                                    <button type="button" class="btn btn-outline-secondary btn-sm" 
+                                                            disabled 
+                                                            title="Aucune idée disponible pour le vote">
+                                                        <i class="bi bi-hand-thumbs-up"></i>
+                                                    </button>
+                                                    <br>
+                                                    <small class="text-muted">Aucune idée</small>
+                                                {% endif %}
                                             {% else %}
                                                 <small class="text-muted">Désactivez l'émission d'abord</small>
                                             {% endif %}
                                         {% endif %}
                                     </div>
+                                </td>
+                                <td class="text-center">
+                                    {% if subject.ideas_count > 0 %}
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="bi bi-lightbulb-fill me-1"></i>{{ subject.ideas_count }} idée(s)
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-light text-muted">
+                                            <i class="bi bi-lightbulb me-1"></i>0 idée
+                                        </span>
+                                    {% endif %}
                                 </td>
                                 <td class="text-center">
                                     <span class="badge bg-info">{{ subject.users_ids|length }} utilisateurs</span>

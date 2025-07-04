@@ -1,195 +1,365 @@
 {% extends "base.html" %}
 
-{% block title %}Historique - {{ subject.name }}{% endblock %}
+{% block title %}Historique du sujet - {{ subject.name }}{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1 class="h3 mb-0 text-gray-800">
-            <i class="bi bi-clock-history me-2"></i>Historique des activités
-        </h1>
-        <p class="text-muted mb-0">Sujet: <strong>{{ subject.name }}</strong></p>
-    </div>
-    <div>
-        <a href="/gestionnaire/subjects" class="btn btn-secondary">
-            <i class="bi bi-arrow-left me-2"></i>Retour aux sujets
+    <h1 class="h3 mb-0 text-gray-800">
+        <i class="bi bi-clock-history me-2"></i>Historique: {{ subject.name }}
+    </h1>
+    <div class="btn-group">
+        <a href="/gestionnaire/dashboard" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Retour au tableau de bord
+        </a>
+        <a href="/gestionnaire/subject/{{ subject.id }}/manage" class="btn btn-primary">
+            <i class="bi bi-pencil-square me-1"></i>Gérer le sujet
         </a>
     </div>
 </div>
 
-<div class="card shadow">
-    <div class="card-header py-3 bg-light">
-        <h6 class="m-0 font-weight-bold text-primary">
-            <i class="bi bi-list-ul me-2"></i>Journal des activités
-            <span class="badge bg-primary ms-2">{{ activities|length }} activité(s)</span>
-        </h6>
+<!-- Statistiques du sujet -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Idées soumises
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_ideas }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-lightbulb text-gray-300" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="card-body p-0">
-        {% if activities %}
-            <div class="timeline">
-                {% for activity in activities %}
-                <div class="timeline-item border-bottom">
-                    <div class="row align-items-center py-3 px-4">
-                        <div class="col-auto">
-                            <div class="timeline-icon
-                                {% if activity.action == 'activate_emission' %}bg-success{% endif %}
-                                {% if activity.action == 'deactivate_emission' %}bg-secondary{% endif %}
-                                {% if activity.action == 'activate_vote' %}bg-primary{% endif %}
-                                {% if activity.action == 'close_vote' %}bg-info{% endif %}
-                                {% if activity.action == 'abandon_vote' %}bg-warning{% endif %}
-                                text-white rounded-circle d-flex align-items-center justify-content-center"
-                                style="width: 45px; height: 45px;">
-                                {% if activity.action == 'activate_emission' %}
-                                    <i class="bi bi-play-circle-fill"></i>
-                                {% elif activity.action == 'deactivate_emission' %}
-                                    <i class="bi bi-pause-circle-fill"></i>
-                                {% elif activity.action == 'activate_vote' %}
-                                    <i class="bi bi-hand-thumbs-up-fill"></i>
-                                {% elif activity.action == 'close_vote' %}
-                                    <i class="bi bi-check-circle-fill"></i>
-                                {% elif activity.action == 'abandon_vote' %}
-                                    <i class="bi bi-x-circle-fill"></i>
-                                {% else %}
-                                    <i class="bi bi-gear-fill"></i>
-                                {% endif %}
-                            </div>
+
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Total des votes
                         </div>
-                        <div class="col">
-                            <div class="timeline-content">
-                                <h6 class="mb-1 fw-bold">{{ activity.description }}</h6>
-                                <p class="mb-1 text-muted">
-                                    Par <strong>{{ activity.user_name }}</strong> ({{ activity.user_email }})
-                                </p>
-                                {% if activity.details %}
-                                    <small class="text-info">
-                                        <i class="bi bi-info-circle me-1"></i>{{ activity.details }}
-                                    </small>
-                                {% endif %}
-                            </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_votes }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-hand-thumbs-up text-gray-300" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Utilisateurs assignés
                         </div>
-                        <div class="col-auto text-end">
-                            <div class="timeline-date">
-                                <small class="text-muted">
-                                    <i class="bi bi-calendar3 me-1"></i>
-                                    {{ activity.timestamp.strftime('%d/%m/%Y') }}
-                                </small>
-                                <br>
-                                <small class="text-muted">
-                                    <i class="bi bi-clock me-1"></i>
-                                    {{ activity.timestamp.strftime('%H:%M:%S') }}
-                                </small>
-                                {% if activity.ip_address %}
-                                    <br>
-                                    <small class="text-muted">
-                                        <i class="bi bi-geo-alt me-1"></i>
-                                        {{ activity.ip_address }}
-                                    </small>
-                                {% endif %}
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_users }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-people text-gray-300" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Activités (7 jours)
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.activities_7d }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-graph-up text-gray-300" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Informations du sujet -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-info-circle me-2"></i>État actuel du sujet
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h4>{{ subject.name }}</h4>
+                        {% if subject.description %}
+                            <p class="text-muted">{{ subject.description }}</p>
+                        {% else %}
+                            <p class="text-muted fst-italic">Aucune description</p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <div class="border-end">
+                                    <span class="badge {% if subject.emission_active %}bg-success{% else %}bg-secondary{% endif %} mb-2">
+                                        <i class="bi bi-lightbulb{% if subject.emission_active %}-fill{% endif %} me-1"></i>
+                                        {% if subject.emission_active %}Émission Active{% else %}Émission Inactive{% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <span class="badge {% if subject.vote_active %}bg-primary{% else %}bg-secondary{% endif %} mb-2">
+                                    <i class="bi bi-hand-thumbs-up{% if subject.vote_active %}-fill{% endif %} me-1"></i>
+                                    {% if subject.vote_active %}Vote Actif{% else %}Vote Inactif{% endif %}
+                                </span>
                             </div>
                         </div>
                     </div>
                 </div>
-                {% endfor %}
             </div>
-        {% else %}
-            <div class="text-center py-5">
-                <i class="bi bi-clock text-muted" style="font-size: 3rem;"></i>
-                <h5 class="mt-3 text-muted">Aucune activité enregistrée</h5>
-                <p class="text-muted">Les activités futures sur ce sujet apparaîtront ici.</p>
-            </div>
-        {% endif %}
+        </div>
     </div>
 </div>
 
-<!-- Statistiques de l'historique -->
-{% if activities %}
-<div class="row mt-4">
-    <div class="col-md-3">
-        <div class="card bg-success text-white">
-            <div class="card-body text-center">
-                <div class="h4 mb-0">
-                    {% set activation_count = 0 %}
-                    {% for activity in activities %}
-                        {% if activity.action == 'activate_emission' %}
-                            {% set activation_count = activation_count + 1 %}
-                        {% endif %}
-                    {% endfor %}
-                    {{ activation_count }}
-                </div>
-                <small>Activations émission</small>
+<!-- Filtres d'activité -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="bi bi-funnel me-2"></i>Filtres de période
+                </h6>
             </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-secondary text-white">
-            <div class="card-body text-center">
-                <div class="h4 mb-0">
-                    {% set deactivation_count = 0 %}
-                    {% for activity in activities %}
-                        {% if activity.action == 'deactivate_emission' %}
-                            {% set deactivation_count = deactivation_count + 1 %}
-                        {% endif %}
-                    {% endfor %}
-                    {{ deactivation_count }}
+            <div class="card-body">
+                <div class="btn-group" role="group" aria-label="Filtres de période">
+                    <button type="button" class="btn btn-outline-primary active" onclick="filterActivities('all')">
+                        Toutes ({{ activities|length }})
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" onclick="filterActivities('24h')">
+                        24h ({{ stats.activities_24h }})
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" onclick="filterActivities('7d')">
+                        7 jours ({{ stats.activities_7d }})
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" onclick="filterActivities('30d')">
+                        30 jours ({{ stats.activities_30d }})
+                    </button>
                 </div>
-                <small>Désactivations émission</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-primary text-white">
-            <div class="card-body text-center">
-                <div class="h4 mb-0">
-                    {% set vote_count = 0 %}
-                    {% for activity in activities %}
-                        {% if activity.action == 'activate_vote' %}
-                            {% set vote_count = vote_count + 1 %}
-                        {% endif %}
-                    {% endfor %}
-                    {{ vote_count }}
-                </div>
-                <small>Sessions de vote</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-info text-white">
-            <div class="card-body text-center">
-                <div class="h4 mb-0">
-                    {% set contributors = [] %}
-                    {% for activity in activities %}
-                        {% if activity.user_email not in contributors %}
-                            {% set _ = contributors.append(activity.user_email) %}
-                        {% endif %}
-                    {% endfor %}
-                    {{ contributors|length }}
-                </div>
-                <small>Contributeurs uniques</small>
             </div>
         </div>
     </div>
 </div>
-{% endif %}
+
+<!-- Historique d'activité -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="bi bi-clock-history me-2"></i>Journal d'activité
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if activities %}
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="activitiesTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th><i class="bi bi-calendar3 me-1"></i>Date/Heure</th>
+                                    <th><i class="bi bi-person me-1"></i>Utilisateur</th>
+                                    <th><i class="bi bi-tag me-1"></i>Action</th>
+                                    <th><i class="bi bi-chat-square-text me-1"></i>Description</th>
+                                    <th><i class="bi bi-info-circle me-1"></i>Détails</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for activity in activities %}
+                                    <tr data-timestamp="{{ activity.timestamp.isoformat() }}" class="activity-row">
+                                        <td>
+                                            <small class="text-muted">
+                                                {{ activity.timestamp.strftime('%d/%m/%Y') }}<br>
+                                                {{ activity.timestamp.strftime('%H:%M:%S') }}
+                                            </small>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="avatar avatar-sm me-2">
+                                                    <span class="badge bg-secondary rounded-pill">
+                                                        {{ activity.user_name.split()[0][:1] }}{{ activity.user_name.split()[-1][:1] if activity.user_name.split()|length > 1 else '' }}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <div class="font-weight-bold">{{ activity.user_name }}</div>
+                                                    <small class="text-muted">{{ activity.user_email }}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge 
+                                                {% if activity.action == 'create_idea' %}bg-success
+                                                {% elif activity.action == 'vote_idea' %}bg-primary
+                                                {% elif activity.action == 'unvote_idea' %}bg-warning
+                                                {% elif activity.action == 'activate_emission' %}bg-info
+                                                {% elif activity.action == 'deactivate_emission' %}bg-secondary
+                                                {% elif activity.action == 'activate_vote' %}bg-primary
+                                                {% elif activity.action == 'close_vote' %}bg-dark
+                                                {% elif activity.action == 'abandon_vote' %}bg-warning
+                                                {% elif activity.action == 'edit_idea' %}bg-info
+                                                {% elif activity.action == 'delete_idea' %}bg-danger
+                                                {% else %}bg-light text-dark
+                                                {% endif %}">
+                                                {% if activity.action == 'create_idea' %}<i class="bi bi-plus-circle me-1"></i>Idée créée
+                                                {% elif activity.action == 'vote_idea' %}<i class="bi bi-hand-thumbs-up me-1"></i>Vote ajouté
+                                                {% elif activity.action == 'unvote_idea' %}<i class="bi bi-hand-thumbs-down me-1"></i>Vote retiré
+                                                {% elif activity.action == 'activate_emission' %}<i class="bi bi-play-circle me-1"></i>Émission activée
+                                                {% elif activity.action == 'deactivate_emission' %}<i class="bi bi-pause-circle me-1"></i>Émission désactivée
+                                                {% elif activity.action == 'activate_vote' %}<i class="bi bi-check-circle me-1"></i>Vote activé
+                                                {% elif activity.action == 'close_vote' %}<i class="bi bi-stop-circle me-1"></i>Vote clôturé
+                                                {% elif activity.action == 'abandon_vote' %}<i class="bi bi-x-circle me-1"></i>Vote abandonné
+                                                {% elif activity.action == 'edit_idea' %}<i class="bi bi-pencil me-1"></i>Idée modifiée
+                                                {% elif activity.action == 'delete_idea' %}<i class="bi bi-trash me-1"></i>Idée supprimée
+                                                {% else %}<i class="bi bi-gear me-1"></i>{{ activity.action }}
+                                                {% endif %}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {{ activity.description }}
+                                        </td>
+                                        <td>
+                                            {% if activity.details %}
+                                                <small class="text-muted">
+                                                    {{ activity.details[:100] }}
+                                                    {% if activity.details|length > 100 %}
+                                                        <button class="btn btn-link btn-sm p-0" type="button" data-bs-toggle="collapse" data-bs-target="#details{{ loop.index }}" aria-expanded="false">
+                                                            ...voir plus
+                                                        </button>
+                                                        <div class="collapse mt-2" id="details{{ loop.index }}">
+                                                            <div class="card card-body">
+                                                                {{ activity.details }}
+                                                            </div>
+                                                        </div>
+                                                    {% endif %}
+                                                </small>
+                                            {% else %}
+                                                <small class="text-muted fst-italic">Aucun détail</small>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-clock-history text-muted" style="font-size: 3rem;"></i>
+                        <h4 class="text-muted mt-3">Aucune activité enregistrée</h4>
+                        <p class="text-muted">
+                            Aucune activité n'a encore été enregistrée pour ce sujet.<br>
+                            Les activités apparaîtront ici au fur et à mesure des interactions des utilisateurs.
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Fonction pour filtrer les activités par période
+function filterActivities(period) {
+    const now = new Date();
+    const rows = document.querySelectorAll('.activity-row');
+    const buttons = document.querySelectorAll('.btn-group .btn');
+    
+    // Réinitialiser les boutons
+    buttons.forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    rows.forEach(row => {
+        const timestamp = new Date(row.getAttribute('data-timestamp'));
+        let show = true;
+        
+        switch(period) {
+            case '24h':
+                show = (now - timestamp) <= 24 * 60 * 60 * 1000;
+                break;
+            case '7d':
+                show = (now - timestamp) <= 7 * 24 * 60 * 60 * 1000;
+                break;
+            case '30d':
+                show = (now - timestamp) <= 30 * 24 * 60 * 60 * 1000;
+                break;
+            case 'all':
+            default:
+                show = true;
+                break;
+        }
+        
+        row.style.display = show ? '' : 'none';
+    });
+}
+
+// Animation d'apparition des lignes
+document.addEventListener('DOMContentLoaded', function() {
+    const rows = document.querySelectorAll('.activity-row');
+    rows.forEach((row, index) => {
+        row.style.opacity = '0';
+        row.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            row.style.transition = 'all 0.3s ease';
+            row.style.opacity = '1';
+            row.style.transform = 'translateY(0)';
+        }, index * 50);
+    });
+});
+</script>
 
 <style>
-.timeline-item:last-child {
-    border-bottom: none !important;
+.border-left-primary {
+    border-left: 0.25rem solid #4e73df !important;
+}
+.border-left-success {
+    border-left: 0.25rem solid #1cc88a !important;
+}
+.border-left-info {
+    border-left: 0.25rem solid #36b9cc !important;
+}
+.border-left-warning {
+    border-left: 0.25rem solid #f6c23e !important;
 }
 
-.timeline-item:hover {
+.avatar {
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.activity-row:hover {
     background-color: #f8f9fc;
-}
-
-.timeline-icon {
-    font-size: 1.2rem;
-}
-
-.timeline-content h6 {
-    color: #5a5c69;
-}
-
-.timeline-date {
-    min-width: 120px;
 }
 </style>
 {% endblock %}

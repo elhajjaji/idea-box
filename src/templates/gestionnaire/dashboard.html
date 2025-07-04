@@ -31,15 +31,20 @@
                                         <small class="text-muted">{{ subject.description[:80] }}{% if subject.description|length > 80 %}...{% endif %}</small>
                                     {% endif %}
                                 </div>
-                                <form action="/gestionnaire/set_active_subject/{{ subject.id }}" method="post">
-                                    <button type="submit" class="btn btn-sm {% if active_subject and active_subject.id == subject.id %}btn-success{% else %}btn-outline-primary{% endif %}">
-                                        {% if active_subject and active_subject.id == subject.id %}
-                                            <i class="bi bi-check-circle me-1"></i>Actif
-                                        {% else %}
-                                            <i class="bi bi-play-circle me-1"></i>Activer
-                                        {% endif %}
-                                    </button>
-                                </form>
+                                <div class="btn-group" role="group">
+                                    <form action="/gestionnaire/set_active_subject/{{ subject.id }}" method="post" style="display: inline;">
+                                        <button type="submit" class="btn btn-sm {% if active_subject and active_subject.id == subject.id %}btn-success{% else %}btn-outline-primary{% endif %}">
+                                            {% if active_subject and active_subject.id == subject.id %}
+                                                <i class="bi bi-check-circle me-1"></i>Sélectionné
+                                            {% else %}
+                                                <i class="bi bi-cursor me-1"></i>Sélectionner
+                                            {% endif %}
+                                        </button>
+                                    </form>
+                                    <a href="/gestionnaire/subject/{{ subject.id }}/manage" class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-pencil me-1"></i>Modifier
+                                    </a>
+                                </div>
                             </div>
                         {% endfor %}
                     </div>

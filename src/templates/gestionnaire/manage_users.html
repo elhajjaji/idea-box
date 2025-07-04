@@ -82,6 +82,78 @@
 </div>
 
 <div class="row">
+    <!-- Gestionnaires du sujet -->
+    <div class="col-md-12 mb-4">
+        <div class="card shadow border-warning">
+            <div class="card-header py-3 bg-warning bg-opacity-10 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-warning">
+                    <i class="bi bi-person-gear me-2"></i>Gestionnaires du sujet
+                    <span class="badge bg-warning ms-2">{{ subject_managers|length }}</span>
+                </h6>
+                <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#addManagerModal">
+                    <i class="bi bi-person-plus-fill me-1"></i>Ajouter gestionnaire
+                </button>
+            </div>
+            <div class="card-body">
+                {% if subject_managers %}
+                    <!-- Actions groupées pour les gestionnaires -->
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="selectAllManagers">
+                            <label class="form-check-label fw-bold" for="selectAllManagers">
+                                Tout sélectionner
+                            </label>
+                        </div>
+                        <button type="button" class="btn btn-outline-danger btn-sm" id="removeManagersBtn" onclick="removeSelectedManagers()" disabled>
+                            <i class="bi bi-person-dash me-1"></i>Retirer les gestionnaires sélectionnés
+                        </button>
+                    </div>
+                    
+                    <div class="list-group list-group-flush">
+                        {% for manager in subject_managers %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center">
+                                    <input type="checkbox" class="form-check-input me-3 manager-checkbox" value="{{ manager.id }}">
+                                    <div class="me-3">
+                                        <div class="bg-warning bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                            <i class="bi bi-person-gear text-warning"></i>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <strong>{{ manager.email }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ manager.prenom }} {{ manager.nom }}</small>
+                                        <br>
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="bi bi-shield-check me-1"></i>Gestionnaire
+                                        </span>
+                                    </div>
+                                </div>
+                                {% if manager.id|string != current_user.id|string %}
+                                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeManager('{{ manager.id }}', '{{ manager.email }}')">
+                                        <i class="bi bi-person-dash me-1"></i>Retirer
+                                    </button>
+                                {% else %}
+                                    <span class="badge bg-info">Vous</span>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-person-gear text-muted" style="font-size: 2rem;"></i>
+                        <p class="text-muted mt-2">Aucun gestionnaire assigné à ce sujet</p>
+                        <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#addManagerModal">
+                            <i class="bi bi-person-plus-fill me-2"></i>Ajouter le premier gestionnaire
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
     <!-- Utilisateurs attribués -->
     <div class="col-md-6 mb-4">
         <div class="card shadow">
@@ -206,6 +278,78 @@
     <a href="/gestionnaire/dashboard" class="btn btn-secondary">
         <i class="bi bi-arrow-left me-2"></i>Retour au tableau de bord
     </a>
+</div>
+
+<!-- Modal d'ajout de gestionnaire -->
+<div class="modal fade" id="addManagerModal" tabindex="-1" aria-labelledby="addManagerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning bg-opacity-10">
+                <h5 class="modal-title text-warning" id="addManagerModalLabel">
+                    <i class="bi bi-person-gear me-2"></i>Ajouter des gestionnaires au sujet
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Recherche avec autocomplétion pour gestionnaires -->
+                <div class="mb-3">
+                    <label for="managerSearch" class="form-label">Rechercher un utilisateur à promouvoir gestionnaire</label>
+                    <input type="text" class="form-control" id="managerSearch" placeholder="Tapez l'email ou le nom...">
+                    <div id="managerSearchResults" class="mt-2"></div>
+                </div>
+
+                <hr>
+
+                <!-- Actions groupées pour l'ajout de gestionnaires -->
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="selectAllPotentialManagers">
+                        <label class="form-check-label fw-bold" for="selectAllPotentialManagers">
+                            Tout sélectionner
+                        </label>
+                    </div>
+                    <button type="button" class="btn btn-warning btn-sm" id="addSelectedManagersBtn" onclick="addSelectedManagers()" disabled>
+                        <i class="bi bi-person-gear me-1"></i>Promouvoir la sélection
+                    </button>
+                </div>
+
+                <!-- Liste de tous les utilisateurs qui peuvent devenir gestionnaires -->
+                <div class="mb-3">
+                    <h6>Utilisateurs éligibles pour être gestionnaires :</h6>
+                    <div style="max-height: 300px; overflow-y: auto;">
+                        {% if potential_managers %}
+                            {% for user in potential_managers %}
+                                <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
+                                    <div class="d-flex align-items-center">
+                                        <input type="checkbox" class="form-check-input me-3 potential-manager-checkbox" value="{{ user.id }}">
+                                        <div>
+                                            <strong>{{ user.email }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ user.prenom }} {{ user.nom }}</small>
+                                            {% if "gestionnaire" in user.roles %}
+                                                <br>
+                                                <span class="badge bg-info">Déjà gestionnaire d'autres sujets</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-warning btn-sm" onclick="addManagerToSubject('{{ user.id }}', '{{ user.email }}')">
+                                        <i class="bi bi-person-gear me-1"></i>Promouvoir
+                                    </button>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted text-center">Tous les utilisateurs éligibles sont déjà gestionnaires de ce sujet</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Note :</strong> Promouvoir un utilisateur comme gestionnaire lui donnera les droits de gestion sur ce sujet et lui ajoutera automatiquement le rôle "gestionnaire" s'il ne l'a pas déjà.
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Modal d'ajout d'utilisateur avec autocomplétion -->
@@ -465,6 +609,162 @@ document.querySelectorAll('.available-user-checkbox').forEach(checkbox => {
     checkbox.addEventListener('change', function() {
         const anyChecked = Array.from(document.querySelectorAll('.available-user-checkbox')).some(checkbox => checkbox.checked);
         document.getElementById('addSelectedBtn').disabled = !anyChecked;
+    });
+});
+
+// Fonction pour retirer un gestionnaire
+function removeManager(managerId, managerEmail) {
+    if (confirm(`Êtes-vous sûr de retirer ${managerEmail} en tant que gestionnaire du sujet ?`)) {
+        // Créer un formulaire temporaire pour soumettre la requête
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/gestionnaire/subject/${subjectId}/remove_manager`;
+        
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'manager_id';
+        input.value = managerId;
+        
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Fonction pour retirer les gestionnaires sélectionnés
+function removeSelectedManagers() {
+    const selectedManagerIds = Array.from(document.querySelectorAll('.manager-checkbox:checked')).map(checkbox => checkbox.value);
+    
+    if (selectedManagerIds.length === 0) {
+        alert('Aucun gestionnaire sélectionné');
+        return;
+    }
+    
+    if (confirm(`Êtes-vous sûr de retirer ${selectedManagerIds.length} gestionnaire(s) du sujet ?`)) {
+        // Créer un formulaire temporaire pour soumettre la requête
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/gestionnaire/subject/${subjectId}/remove_managers`;
+        
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'manager_ids';
+        input.value = JSON.stringify(selectedManagerIds);
+        
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Gestion du bouton "Tout sélectionner" pour les gestionnaires
+document.getElementById('selectAllManagers').addEventListener('change', function() {
+    const isChecked = this.checked;
+    document.querySelectorAll('.manager-checkbox').forEach(checkbox => {
+        checkbox.checked = isChecked;
+    });
+    document.getElementById('removeManagersBtn').disabled = !isChecked;
+});
+
+// Activation du bouton "Retirer les gestionnaires sélectionnés" si des cases sont cochées
+document.querySelectorAll('.manager-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        const anyChecked = Array.from(document.querySelectorAll('.manager-checkbox')).some(checkbox => checkbox.checked);
+        document.getElementById('removeManagersBtn').disabled = !anyChecked;
+    });
+});
+
+// Autocomplétion pour la recherche de gestionnaires
+document.getElementById('managerSearch').addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase();
+    const managerSearchResults = document.getElementById('managerSearchResults');
+    
+    if (searchTerm.length < 2) {
+        managerSearchResults.innerHTML = '';
+        return;
+    }
+    
+    const filteredManagers = availableUsers.filter(user => 
+        user.email.toLowerCase().includes(searchTerm) ||
+        user.prenom.toLowerCase().includes(searchTerm) ||
+        user.nom.toLowerCase().includes(searchTerm)
+    );
+    
+    if (filteredManagers.length > 0) {
+        managerSearchResults.innerHTML = filteredManagers.map(user => `
+            <div class="d-flex justify-content-between align-items-center p-2 border rounded mb-1 bg-light">
+                <div>
+                    <strong>${user.email}</strong>
+                    <br>
+                    <small class="text-muted">${user.prenom} ${user.nom}</small>
+                </div>
+                <button class="btn btn-warning btn-sm" onclick="addManagerToSubject('${user.id}', '${user.email}')">
+                    <i class="bi bi-person-gear me-1"></i>Promouvoir
+                </button>
+            </div>
+        `).join('');
+    } else {
+        managerSearchResults.innerHTML = '<p class="text-muted">Aucun utilisateur trouvé</p>';
+    }
+});
+
+// Fonction pour promouvoir un utilisateur en tant que gestionnaire
+function addManagerToSubject(userId, userEmail) {
+    // Créer un formulaire temporaire pour soumettre la requête
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/gestionnaire/subject/${subjectId}/add_manager`;
+    
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'user_id';
+    input.value = userId;
+    
+    form.appendChild(input);
+    document.body.appendChild(form);
+    form.submit();
+}
+
+// Fonction pour promouvoir plusieurs gestionnaires sélectionnés
+function addSelectedManagers() {
+    const selectedManagerIds = Array.from(document.querySelectorAll('.potential-manager-checkbox:checked')).map(checkbox => checkbox.value);
+    
+    if (selectedManagerIds.length === 0) {
+        alert('Aucun utilisateur sélectionné à promouvoir');
+        return;
+    }
+    
+    if (confirm(`Êtes-vous sûr de promouvoir ${selectedManagerIds.length} utilisateur(s) en tant que gestionnaire(s) ?`)) {
+        // Créer un formulaire temporaire pour soumettre la requête
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/gestionnaire/subject/${subjectId}/add_managers`;
+        
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'user_ids';
+        input.value = JSON.stringify(selectedManagerIds);
+        
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Gestion du bouton "Tout sélectionner" pour les gestionnaires potentiels
+document.getElementById('selectAllPotentialManagers').addEventListener('change', function() {
+    const isChecked = this.checked;
+    document.querySelectorAll('.potential-manager-checkbox').forEach(checkbox => {
+        checkbox.checked = isChecked;
+    });
+    document.getElementById('addSelectedManagersBtn').disabled = !isChecked;
+});
+
+// Activation du bouton "Ajouter la sélection" pour les gestionnaires si des cases sont cochées
+document.querySelectorAll('.potential-manager-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        const anyChecked = Array.from(document.querySelectorAll('.potential-manager-checkbox')).some(checkbox => checkbox.checked);
+        document.getElementById('addSelectedManagersBtn').disabled = !anyChecked;
     });
 });
 </script>
