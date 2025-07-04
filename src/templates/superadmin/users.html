@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Gestion des Utilisateurs{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="text-center">Gestion des Utilisateurs</h1>
+    <div class="card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Utilisateurs</span>
+            <div>
+                <a href="/superadmin/users/add" class="btn btn-primary">Ajouter un utilisateur</a>
+                <a href="/superadmin/users/import" class="btn btn-secondary">Importer des utilisateurs (CSV)</a>
+            </div>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Email</th>
+                        <th>Nom</th>
+                        <th>Prénom</th>
+                        <th>Rôles</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                        <tr>
+                            <td>{{ user.email }}</td>
+                            <td>{{ user.nom }}</td>
+                            <td>{{ user.prenom }}</td>
+                            <td>{{ user.roles | join(', ') }}</td>
+                            <td>
+                                <a href="#" class="btn btn-sm btn-outline-primary">Modifier</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

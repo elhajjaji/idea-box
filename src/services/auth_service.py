@@ -38,28 +38,22 @@ async def get_user_by_email(email: str):
 async def get_current_user(request: Request, token: Optional[str] = Depends(oauth2_scheme), access_token: Optional[str] = Cookie(None)):
     """
     Get current user from either Authorization header or cookie
+    Retourne None si non authentifié ou token invalide (pas d'exception).
     """
-    # Try to get token from Authorization header first, then from cookie
     auth_token = token or access_token
-    
     if not auth_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
+        return None
     try:
         payload = jwt.decode(auth_token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
         if email is None:
-            raise HTTPException(status_code=401, detail="Could not validate credentials")
+            return None
         user = await get_user_by_email(email)
         if user is None:
-            raise HTTPException(status_code=401, detail="Could not validate credentials")
+            return None
         return user
     except JWTError:
-        raise HTTPException(status_code=401, detail="Could not validate credentials")
+        return None
 
 async def get_current_user_optional(request: Request, token: Optional[str] = Depends(oauth2_scheme), access_token: Optional[str] = Cookie(None)):
     """
@@ -74,6 +68,9 @@ async def get_current_user_optional(request: Request, token: Optional[str] = Dep
         if email is None:
             return None
         user = await get_user_by_email(email)
+        if user:
+            # user.roles = payload.get("roles", []) # Assign roles from JWT to user object
+            pass # Roles are already loaded from DB
         return user
     except JWTError:
         return None

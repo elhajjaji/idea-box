@@ -22,6 +22,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "src" / "templates"))
 
 async def get_current_gestionnaire(request: Request, current_user: User = Depends(get_current_user)):
+    if not current_user:
+        raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, detail="Not authenticated", headers={"Location": "/auth/login"})
     # Check if user is gestionnaire of at least one subject
     subjects = await get_subjects_by_gestionnaire(str(current_user.id))
     if not subjects:
@@ -89,6 +91,9 @@ async def add_user_to_subject_route(subject_id: str, request: Request, user_id: 
     subject = await add_user_to_subject(subject_id, user_id)
     if not subject:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Impossible d'ajouter l'utilisateur au sujet.")
+    # Ajout du rôle gestionnaire si l'utilisateur est dans gestionnaires_ids
+    if str(user_id) in subject.gestionnaires_ids:
+        await add_role_to_user(user_id, "gestionnaire")
     return RedirectResponse(url=f"/gestionnaire/subject/{subject_id}/manage_users", status_code=status.HTTP_303_SEE_OTHER)
 
 @router.post("/gestionnaire/subject/{subject_id}/remove_user")
@@ -166,6 +171,10 @@ async def create_and_add_user_route(
         if created_user:
             # Ajouter l'utilisateur au sujet
             await add_user_to_subject(subject_id, str(created_user.id))
+            # Ajout du rôle gestionnaire si l'utilisateur est dans gestionnaires_ids
+            subject = await get_subject(subject_id)
+            if str(created_user.id) in subject.gestionnaires_ids:
+                await add_role_to_user(str(created_user.id), "gestionnaire")
             request.session["success_message"] = f"Utilisateur {email} créé et ajouté au sujet avec succès."
         else:
             request.session["error_message"] = "Erreur lors de la création de l'utilisateur."
@@ -225,6 +234,10 @@ async def import_users_route(
                     if str(created_user.id) not in subject.users_ids:
                         await add_user_to_subject(subject_id, str(created_user.id))
                         added_count += 1
+                    # Ajout du rôle gestionnaire si l'utilisateur est dans gestionnaires_ids
+                    subject = await get_subject(subject_id)
+                    if str(created_user.id) in subject.gestionnaires_ids:
+                        await add_role_to_user(str(created_user.id), "gestionnaire")
                 else:
                     errors.append(f"Impossible de créer l'utilisateur {row['email']} (déjà existant ?)")
             except Exception as e:

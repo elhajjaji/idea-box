@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Choix du rôle{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Choisissez votre rôle</h4>
+                </div>
+                <div class="card-body">
+                    <p class="mb-4">Vous avez plusieurs rôles. Veuillez choisir l'interface à utiliser :</p>
+                    <div class="d-grid gap-3">
+                        {% for role in roles %}
+                            {% if role|lower == 'gestionnaire' %}
+                                <a href="/gestionnaire/dashboard" class="btn btn-outline-primary btn-lg">Gestionnaire</a>
+                            {% elif role|lower == 'user' or role|lower == 'utilisateur' %}
+                                <a href="/user/dashboard" class="btn btn-outline-success btn-lg">Utilisateur</a>
+                            {% else %}
+                                <a href="#" class="btn btn-outline-secondary btn-lg">{{ role|capitalize }}</a>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

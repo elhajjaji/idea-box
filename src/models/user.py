@@ -3,7 +3,7 @@ from typing import Optional, List
 from odmantic import Model
 
 class User(Model):
-    __collection__ = "users"
+    __collection__ = "user"
     email: EmailStr
     nom: str
     prenom: str

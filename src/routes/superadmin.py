@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import List, Optional
 import csv
 import io
+from bson import ObjectId
 
 from src.models.user import User
 from src.models.subject import Subject
@@ -17,7 +18,9 @@ router = APIRouter()
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "src" / "templates"))
 
-async def get_current_superadmin(current_user: User = Depends(get_current_user)):
+async def get_current_superadmin(request: Request, current_user: User = Depends(get_current_user)):
+    if not current_user:
+        raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, detail="Not authenticated", headers={"Location": "/auth/login"})
     if "superadmin" not in current_user.roles:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Vous n'avez pas les droits de superadmin")
     return current_user
@@ -26,11 +29,18 @@ async def get_current_superadmin(current_user: User = Depends(get_current_user))
 async def superadmin_dashboard(request: Request, current_user: User = Depends(get_current_superadmin)):
     users = await get_users()
     subjects = await Database.engine.find(Subject)
-    return templates.TemplateResponse("superadmin/dashboard.html", {"request": request, "users": users, "subjects": subjects, "current_user": current_user, "show_sidebar": True})
+    # Create a new list of subjects with string IDs
+    subjects_for_template = []
+    for subject in subjects:
+        subject_dict = subject.dict()
+        subject_dict["id"] = str(subject.id)
+        subjects_for_template.append(subject_dict)
+    user_emails = {str(user.id): user.email for user in users}
+    return templates.TemplateResponse("superadmin/dashboard.html", {"request": request, "users": users, "subjects": subjects_for_template, "current_user": current_user, "user_emails": user_emails, "show_sidebar": True})
 
 @router.get("/superadmin/users/add", response_class=HTMLResponse)
 async def add_user_form(request: Request, current_user: User = Depends(get_current_superadmin)):
-    return templates.TemplateResponse("superadmin/add_user.html", {"request": request})
+    return templates.TemplateResponse("superadmin/add_user.html", {"request": request, "current_user": current_user, "show_sidebar": True})
 
 @router.post("/superadmin/users/add", response_class=HTMLResponse)
 async def add_user(request: Request, email: str = Form(...), nom: str = Form(...), prenom: str = Form(...), password: str = Form(...), current_user: User = Depends(get_current_superadmin)):
@@ -92,45 +102,97 @@ async def create_subject(request: Request, name: str = Form(...), description: O
     subject = Subject(name=name, description=description, superadmin_id=str(current_user.id), gestionnaires_ids=gestionnaires_ids)
     await Database.engine.save(subject)
 
-    # Add 'gestionnaire' role to selected users
+    # Correction robuste : vérifie l'existence de chaque utilisateur avant d'ajouter le rôle
     for user_id in gestionnaires_ids:
-        await add_role_to_user(user_id, "gestionnaire")
+        try:
+            user = await Database.engine.find_one(User, User.id == ObjectId(user_id))
+        except Exception as e:
+            print(f"[ERREUR] Mauvais format d'ID pour gestionnaire : {user_id} ({e})")
+            continue
+        if user:
+            result = await add_role_to_user(str(user.id), "gestionnaire")
+            if not result:
+                print(f"[ERREUR] Impossible d'ajouter le rôle gestionnaire à l'utilisateur {user.email} (id={user.id})")
+        else:
+            print(f"[ERREUR] Utilisateur non trouvé pour l'id {user_id}")
 
-    return templates.TemplateResponse("superadmin/create_subject.html", {"request": request, "message": "Sujet créé avec succès !"})
+    return RedirectResponse(url="/auth/logout", status_code=status.HTTP_303_SEE_OTHER)
 
 @router.get("/superadmin/subjects/{subject_id}/edit", response_class=HTMLResponse)
 async def edit_subject_form(subject_id: str, request: Request, current_user: User = Depends(get_current_superadmin)):
-    subject = await Database.engine.find_one(Subject, Subject.id == subject_id)
-    if not subject:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sujet non trouvé")
-    
-    users = await get_users()
-    return templates.TemplateResponse("superadmin/edit_subject.html", {"request": request, "subject": subject, "users": users})
+    try:
+        subject = await Database.engine.find_one(Subject, Subject.id == ObjectId(subject_id))
+        if not subject:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sujet non trouvé")
+        
+        users = await get_users()
+        return templates.TemplateResponse("superadmin/edit_subject.html", {"request": request, "subject": subject, "users": users, "current_user": current_user, "show_sidebar": True})
+    except Exception as e:
+        return templates.TemplateResponse("superadmin/edit_subject.html", {"request": request, "error": f"Erreur: {e}", "current_user": current_user, "show_sidebar": True})
 
 @router.post("/superadmin/subjects/{subject_id}/edit", response_class=HTMLResponse)
 async def edit_subject(subject_id: str, request: Request, name: str = Form(...), description: Optional[str] = Form(None), gestionnaires_ids: List[str] = Form([]), current_user: User = Depends(get_current_superadmin)):
-    subject = await Database.engine.find_one(Subject, Subject.id == subject_id)
-    if not subject:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sujet non trouvé")
-    
-    # Update subject
-    subject.name = name
-    subject.description = description
-    
-    # Remove gestionnaire role from users who are no longer gestionnaires
-    for old_gestionnaire_id in subject.gestionnaires_ids:
-        if old_gestionnaire_id not in gestionnaires_ids:
-            # Check if user is gestionnaire of other subjects
-            other_subjects = await Database.engine.find(Subject, {"gestionnaires_ids": {"$in": [old_gestionnaire_id]}, "_id": {"$ne": subject.id}})
-            if not other_subjects:
-                # Remove gestionnaire role if not gestionnaire of other subjects
-                await remove_role_from_user(old_gestionnaire_id, "gestionnaire")
-    
-    subject.gestionnaires_ids = gestionnaires_ids
-    await Database.engine.save(subject)
+    try:
+        subject = await Database.engine.find_one(Subject, Subject.id == ObjectId(subject_id))
+        if not subject:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sujet non trouvé")
+        
+        # Update subject
+        subject.name = name
+        subject.description = description
+        
+        # Remove gestionnaire role from users who are no longer gestionnaires
+        for old_gestionnaire_id in subject.gestionnaires_ids:
+            if old_gestionnaire_id not in gestionnaires_ids:
+                # Check if user is gestionnaire of other subjects
+                other_subjects = await Database.engine.find(Subject, {"gestionnaires_ids": {"$in": [old_gestionnaire_id]}, "_id": {"$ne": subject.id}})
+                if not other_subjects:
+                    # Remove gestionnaire role if not gestionnaire of other subjects
+                    await remove_role_from_user(old_gestionnaire_id, "gestionnaire")
+        
+        subject.gestionnaires_ids = gestionnaires_ids
+        await Database.engine.save(subject)
+        # Ajout du rôle gestionnaire à tous les gestionnaires sélectionnés (en parallèle)
+        import asyncio
+        await asyncio.gather(*(add_role_to_user(user_id, "gestionnaire") for user_id in gestionnaires_ids))
 
-    # Add 'gestionnaire' role to new gestionnaires
-    for user_id in gestionnaires_ids:
-        await add_role_to_user(user_id, "gestionnaire")
+        # Force re-authentication to update roles in JWT
+        # return RedirectResponse(url="/auth/logout", status_code=status.HTTP_303_SEE_OTHER) # Commented out for now
 
-    return templates.TemplateResponse("superadmin/edit_subject.html", {"request": request, "subject": subject, "users": await get_users(), "message": "Sujet modifié avec succès !"})
+        # Re-fetch users and subject to pass updated data to template
+        users = await get_users()
+        subject = await Database.engine.find_one(Subject, Subject.id == ObjectId(subject_id)) # Re-fetch subject to get updated gestionnaires_ids
+
+        return templates.TemplateResponse("superadmin/edit_subject.html", {
+            "request": request,
+            "subject": subject,
+            "users": users,
+            "message": "Sujet modifié avec succès !",
+            "current_user": current_user,
+            "show_sidebar": True
+        })
+    except Exception as e:
+        users = await get_users()
+        return templates.TemplateResponse("superadmin/edit_subject.html", {"request": request, "error": f"Erreur: {e}", "users": users, "current_user": current_user, "show_sidebar": True})
+
+@router.get("/superadmin/users", response_class=HTMLResponse)
+async def superadmin_users(request: Request, current_user: User = Depends(get_current_superadmin)):
+    users = await get_users()
+    return templates.TemplateResponse("superadmin/users.html", {"request": request, "users": users, "current_user": current_user, "show_sidebar": True})
+
+@router.get("/superadmin/subjects", response_class=HTMLResponse)
+async def superadmin_subjects(request: Request, current_user: User = Depends(get_current_superadmin)):
+    subjects = await Database.engine.find(Subject)
+    # Create a new list of subjects with string IDs
+    subjects_for_template = []
+    for subject in subjects:
+        subject_dict = subject.dict()
+        subject_dict["id"] = str(subject.id)
+        subjects_for_template.append(subject_dict)
+    users = await get_users()
+    user_emails = {str(user.id): user.email for user in users}
+    return templates.TemplateResponse("superadmin/subjects.html", {"request": request, "subjects": subjects_for_template, "current_user": current_user, "user_emails": user_emails, "show_sidebar": True})
+
+@router.get("/superadmin/settings", response_class=HTMLResponse)
+async def superadmin_settings(request: Request, current_user: User = Depends(get_current_superadmin)):
+    return templates.TemplateResponse("superadmin/settings.html", {"request": request, "current_user": current_user, "show_sidebar": True})

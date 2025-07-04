@@ -4,7 +4,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from typing import Optional
 from src.models.user import User
-from src.services.auth_service import (create_access_token, get_password_hash, verify_password, get_user_by_email, get_current_user, SECRET_KEY, ALGORITHM)
+from src.services.auth_service import (create_access_token, get_password_hash, verify_password, get_user_by_email, get_current_user, get_current_user_optional, SECRET_KEY, ALGORITHM)
 from src.services.database import Database
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
@@ -17,8 +17,8 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "src" / "templates"))
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
 @router.get("/register", response_class=HTMLResponse)
-async def register_form(request: Request):
-    return templates.TemplateResponse("register.html", {"request": request})
+async def register_form(request: Request, current_user: User = Depends(get_current_user_optional)):
+    return templates.TemplateResponse("register.html", {"request": request, "current_user": current_user, "show_sidebar": False})
 
 @router.post("/register", response_class=HTMLResponse)
 async def register_user(request: Request, email: str = Form(...), nom: str = Form(...), prenom: str = Form(...), password: str = Form(...)):
@@ -32,8 +32,8 @@ async def register_user(request: Request, email: str = Form(...), nom: str = For
     return templates.TemplateResponse("register.html", {"request": request, "message": "Inscription réussie ! Vous pouvez maintenant vous connecter."})
 
 @router.get("/login", response_class=HTMLResponse)
-async def login_form(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
+async def login_form(request: Request, current_user: User = Depends(get_current_user_optional)):
+    return templates.TemplateResponse("login.html", {"request": request, "current_user": current_user, "show_sidebar": False})
 
 @router.post("/token")
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):

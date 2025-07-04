@@ -36,7 +36,7 @@
                                     <small class="text-muted">
                                         Gestionnaires: 
                                         {% for gestionnaire_id in subject.gestionnaires_ids %}
-                                            {{ gestionnaire_id }}{% if not loop.last %}, {% endif %}
+                                            {{ user_emails.get(gestionnaire_id, 'ID non trouvé') }}{% if not loop.last %}, {% endif %}
                                         {% else %}
                                             Aucun gestionnaire assigné
                                         {% endfor %}

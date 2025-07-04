@@ -18,8 +18,9 @@ router = APIRouter()
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "src" / "templates"))
 
-async def get_current_normal_user(current_user: User = Depends(get_current_user)):
-    # All authenticated users are considered 'normal' users unless they have specific roles
+async def get_current_normal_user(request: Request, current_user: User = Depends(get_current_user)):
+    if not current_user:
+        return RedirectResponse(url="/auth/login", status_code=status.HTTP_303_SEE_OTHER)
     return current_user
 
 @router.get("/user/dashboard", response_class=HTMLResponse)
@@ -31,7 +32,8 @@ async def user_dashboard(request: Request, current_user: User = Depends(get_curr
             "request": request,
             "current_user": current_user,
             "user_subjects": user_subjects,
-            "user_stats": user_stats
+            "user_stats": user_stats,
+            "show_sidebar": True
         })
     
     except Exception as e:
@@ -71,6 +73,13 @@ async def create_new_idea(subject_id: str, request: Request, title: str = Form(.
     await create_idea(idea)
     return RedirectResponse(url=f"/user/subject/{subject_id}/ideas", status_code=status.HTTP_303_SEE_OTHER)
 
+@router.get("/user/ideas", response_class=HTMLResponse)
+async def user_ideas(request: Request, current_user: User = Depends(get_current_normal_user)):
+    if isinstance(current_user, RedirectResponse):
+        return current_user
+    ideas = await Database.engine.find(Idea, Idea.user_id == str(current_user.id))
+    return templates.TemplateResponse("user/my_ideas.html", {"request": request, "ideas": ideas, "current_user": current_user, "show_sidebar": True})
+
 @router.post("/user/idea/{idea_id}/vote")
 async def vote_for_idea(idea_id: str, request: Request, current_user: User = Depends(get_current_normal_user)):
     idea = await Database.engine.find_one(Idea, Idea.id == idea_id)
@@ -99,3 +108,29 @@ async def vote_for_idea(idea_id: str, request: Request, current_user: User = Dep
         await add_vote_to_idea(idea_id, str(current_user.id))
     
     return RedirectResponse(url=f"/user/subject/{subject.id}/ideas", status_code=status.HTTP_303_SEE_OTHER)
+
+@router.get("/choose-role", response_class=HTMLResponse)
+async def choose_role(request: Request, current_user: User = Depends(get_current_normal_user)):
+    if isinstance(current_user, RedirectResponse):
+        return current_user
+    # Si un seul rôle, redirige automatiquement
+    if len(current_user.roles) == 1:
+        if "gestionnaire" in [r.lower() for r in current_user.roles]:
+            return RedirectResponse(url="/gestionnaire/dashboard", status_code=status.HTTP_303_SEE_OTHER)
+        else:
+            return RedirectResponse(url="/user/dashboard", status_code=status.HTTP_303_SEE_OTHER)
+    # Sinon, affiche le choix de rôle
+    return templates.TemplateResponse("choose_role.html", {"request": request, "roles": current_user.roles})
+
+@router.get("/dashboard", response_class=HTMLResponse)
+async def dashboard_redirect(request: Request, current_user: User = Depends(get_current_normal_user)):
+    if isinstance(current_user, RedirectResponse):
+        return current_user
+    # Redirige selon le nombre de rôles
+    if len(current_user.roles) == 1:
+        if "gestionnaire" in [r.lower() for r in current_user.roles]:
+            return RedirectResponse(url="/gestionnaire/dashboard", status_code=status.HTTP_303_SEE_OTHER)
+        else:
+            return RedirectResponse(url="/user/dashboard", status_code=status.HTTP_303_SEE_OTHER)
+    else:
+        return RedirectResponse(url="/choose-role", status_code=status.HTTP_303_SEE_OTHER)
