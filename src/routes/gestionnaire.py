@@ -15,6 +15,7 @@ from src.services.subject_service import (
     remove_user_from_subject, activate_emission, deactivate_emission, activate_vote, close_vote, abandon_vote
 )
 from src.services.database import Database
+from src.services.activity_log_service import log_activity, get_subject_activities
 
 router = APIRouter()
 
@@ -39,6 +40,33 @@ async def gestionnaire_dashboard(request: Request, current_user: User = Depends(
         active_subject = await get_subject(active_subject_id)
 
     return templates.TemplateResponse("gestionnaire/dashboard.html", {"request": request, "subjects": subjects, "active_subject": active_subject, "current_user": current_user, "show_sidebar": True})
+
+@router.get("/gestionnaire/subjects", response_class=HTMLResponse)
+async def gestionnaire_subjects(request: Request, current_user: User = Depends(get_current_gestionnaire)):
+    subjects = await get_subjects_by_gestionnaire(str(current_user.id))
+    return templates.TemplateResponse("gestionnaire/subjects.html", {"request": request, "subjects": subjects, "current_user": current_user, "show_sidebar": True})
+
+@router.get("/gestionnaire/users", response_class=HTMLResponse)
+async def gestionnaire_users(request: Request, current_user: User = Depends(get_current_gestionnaire)):
+    # Récupérer tous les sujets gérés par le gestionnaire
+    subjects = await get_subjects_by_gestionnaire(str(current_user.id))
+    
+    # Récupérer tous les utilisateurs assignés aux sujets du gestionnaire
+    all_users = await get_users()
+    managed_users = []
+    
+    for subject in subjects:
+        for user in all_users:
+            if str(user.id) in subject.users_ids and user not in managed_users:
+                managed_users.append(user)
+    
+    return templates.TemplateResponse("gestionnaire/users.html", {
+        "request": request, 
+        "users": managed_users,
+        "subjects": subjects,
+        "current_user": current_user, 
+        "show_sidebar": True
+    })
 
 @router.post("/gestionnaire/set_active_subject/{subject_id}")
 async def set_active_subject(subject_id: str, request: Request, current_user: User = Depends(get_current_gestionnaire)):
@@ -83,7 +111,9 @@ async def manage_subject_users_form(subject_id: str, request: Request, current_u
         "subject": subject, 
         "subject_users": subject_users, 
         "available_users": available_users,
-        "available_users_dict": available_users_dict
+        "available_users_dict": available_users_dict,
+        "current_user": current_user,
+        "show_sidebar": True
     })
 
 @router.post("/gestionnaire/subject/{subject_id}/add_user")
@@ -96,6 +126,40 @@ async def add_user_to_subject_route(subject_id: str, request: Request, user_id: 
         await add_role_to_user(user_id, "gestionnaire")
     return RedirectResponse(url=f"/gestionnaire/subject/{subject_id}/manage_users", status_code=status.HTTP_303_SEE_OTHER)
 
+@router.post("/gestionnaire/subject/{subject_id}/add_users")
+async def add_users_to_subject_route(subject_id: str, request: Request, user_ids: str = Form(...), current_user: User = Depends(get_current_gestionnaire)):
+    """
+    Ajoute plusieurs utilisateurs au sujet en une seule fois
+    """
+    import json
+    try:
+        user_ids_list = json.loads(user_ids)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Format des IDs utilisateurs invalide.")
+    
+    success_count = 0
+    failed_count = 0
+    
+    for user_id in user_ids_list:
+        try:
+            subject = await add_user_to_subject(subject_id, user_id)
+            if subject:
+                # Ajout du rôle gestionnaire si l'utilisateur est dans gestionnaires_ids
+                if str(user_id) in subject.gestionnaires_ids:
+                    await add_role_to_user(user_id, "gestionnaire")
+                success_count += 1
+            else:
+                failed_count += 1
+        except Exception:
+            failed_count += 1
+    
+    if success_count > 0:
+        request.session["success_message"] = f"{success_count} utilisateur(s) ajouté(s) au sujet avec succès."
+    if failed_count > 0:
+        request.session["error_message"] = f"Échec pour {failed_count} utilisateur(s)."
+    
+    return RedirectResponse(url=f"/gestionnaire/subject/{subject_id}/manage_users", status_code=status.HTTP_303_SEE_OTHER)
+
 @router.post("/gestionnaire/subject/{subject_id}/remove_user")
 async def remove_user_from_subject_route(subject_id: str, request: Request, user_id: str = Form(...), current_user: User = Depends(get_current_gestionnaire)):
     subject = await remove_user_from_subject(subject_id, user_id)
@@ -103,40 +167,151 @@ async def remove_user_from_subject_route(subject_id: str, request: Request, user
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Impossible de retirer l'utilisateur du sujet.")
     return RedirectResponse(url=f"/gestionnaire/subject/{subject_id}/manage_users", status_code=status.HTTP_303_SEE_OTHER)
 
+@router.post("/gestionnaire/subject/{subject_id}/remove_users")
+async def remove_users_from_subject_route(subject_id: str, request: Request, user_ids: str = Form(...), current_user: User = Depends(get_current_gestionnaire)):
+    """
+    Retire plusieurs utilisateurs du sujet en une seule fois
+    """
+    import json
+    try:
+        user_ids_list = json.loads(user_ids)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Format des IDs utilisateurs invalide.")
+    
+    success_count = 0
+    failed_count = 0
+    
+    for user_id in user_ids_list:
+        try:
+            subject = await remove_user_from_subject(subject_id, user_id)
+            if subject:
+                success_count += 1
+            else:
+                failed_count += 1
+        except Exception:
+            failed_count += 1
+    
+    if success_count > 0:
+        request.session["success_message"] = f"{success_count} utilisateur(s) retiré(s) du sujet avec succès."
+    if failed_count > 0:
+        request.session["error_message"] = f"Échec pour {failed_count} utilisateur(s)."
+    
+    return RedirectResponse(url=f"/gestionnaire/subject/{subject_id}/manage_users", status_code=status.HTTP_303_SEE_OTHER)
+
 @router.post("/gestionnaire/subject/{subject_id}/activate_emission")
 async def activate_emission_route(subject_id: str, request: Request, current_user: User = Depends(get_current_gestionnaire)):
     subject = await activate_emission(subject_id)
     if not subject:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Impossible d'activer l'émission d'idées.")
-    return RedirectResponse(url="/gestionnaire/dashboard", status_code=status.HTTP_303_SEE_OTHER)
+    
+    # Log de l'activité
+    await log_activity(
+        action="activate_emission",
+        subject_id=subject_id,
+        user=current_user,
+        description=f"Activation de l'émission d'idées pour le sujet '{subject.name}'",
+        details="État précédent: Inactive",
+        request=request
+    )
+    
+    # Redirection vers la page d'origine ou par défaut vers /gestionnaire/subjects
+    referer = request.headers.get("referer", "/gestionnaire/subjects")
+    if "subjects" in referer:
+        return RedirectResponse(url="/gestionnaire/subjects", status_code=status.HTTP_303_SEE_OTHER)
+    else:
+        return RedirectResponse(url="/gestionnaire/dashboard", status_code=status.HTTP_303_SEE_OTHER)
 
 @router.post("/gestionnaire/subject/{subject_id}/deactivate_emission")
 async def deactivate_emission_route(subject_id: str, request: Request, current_user: User = Depends(get_current_gestionnaire)):
     subject = await deactivate_emission(subject_id)
     if not subject:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Impossible de désactiver l'émission d'idées.")
-    return RedirectResponse(url="/gestionnaire/dashboard", status_code=status.HTTP_303_SEE_OTHER)
+    
+    # Log de l'activité
+    await log_activity(
+        action="deactivate_emission",
+        subject_id=subject_id,
+        user=current_user,
+        description=f"Désactivation de l'émission d'idées pour le sujet '{subject.name}'",
+        details="État précédent: Active",
+        request=request
+    )
+    
+    # Redirection vers la page d'origine ou par défaut vers /gestionnaire/subjects
+    referer = request.headers.get("referer", "/gestionnaire/subjects")
+    if "subjects" in referer:
+        return RedirectResponse(url="/gestionnaire/subjects", status_code=status.HTTP_303_SEE_OTHER)
+    else:
+        return RedirectResponse(url="/gestionnaire/dashboard", status_code=status.HTTP_303_SEE_OTHER)
 
 @router.post("/gestionnaire/subject/{subject_id}/activate_vote")
 async def activate_vote_route(subject_id: str, request: Request, current_user: User = Depends(get_current_gestionnaire)):
     subject = await activate_vote(subject_id)
     if not subject:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Impossible d'activer la session de vote.")
-    return RedirectResponse(url="/gestionnaire/dashboard", status_code=status.HTTP_303_SEE_OTHER)
+    
+    # Log de l'activité
+    await log_activity(
+        action="activate_vote",
+        subject_id=subject_id,
+        user=current_user,
+        description=f"Activation de la session de vote pour le sujet '{subject.name}'",
+        details="Émission d'idées automatiquement désactivée",
+        request=request
+    )
+    
+    # Redirection vers la page d'origine ou par défaut vers /gestionnaire/subjects
+    referer = request.headers.get("referer", "/gestionnaire/subjects")
+    if "subjects" in referer:
+        return RedirectResponse(url="/gestionnaire/subjects", status_code=status.HTTP_303_SEE_OTHER)
+    else:
+        return RedirectResponse(url="/gestionnaire/dashboard", status_code=status.HTTP_303_SEE_OTHER)
 
 @router.post("/gestionnaire/subject/{subject_id}/close_vote")
 async def close_vote_route(subject_id: str, request: Request, current_user: User = Depends(get_current_gestionnaire)):
     subject = await close_vote(subject_id)
     if not subject:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Impossible de clôturer la session de vote.")
-    return RedirectResponse(url="/gestionnaire/dashboard", status_code=status.HTTP_303_SEE_OTHER)
+    
+    # Log de l'activité
+    await log_activity(
+        action="close_vote",
+        subject_id=subject_id,
+        user=current_user,
+        description=f"Clôture de la session de vote pour le sujet '{subject.name}'",
+        details="Résultats finalisés",
+        request=request
+    )
+    
+    # Redirection vers la page d'origine ou par défaut vers /gestionnaire/subjects
+    referer = request.headers.get("referer", "/gestionnaire/subjects")
+    if "subjects" in referer:
+        return RedirectResponse(url="/gestionnaire/subjects", status_code=status.HTTP_303_SEE_OTHER)
+    else:
+        return RedirectResponse(url="/gestionnaire/dashboard", status_code=status.HTTP_303_SEE_OTHER)
 
 @router.post("/gestionnaire/subject/{subject_id}/abandon_vote")
 async def abandon_vote_route(subject_id: str, request: Request, current_user: User = Depends(get_current_gestionnaire)):
     subject = await abandon_vote(subject_id)
     if not subject:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Impossible d'abandonner la session de vote.")
-    return RedirectResponse(url="/gestionnaire/dashboard", status_code=status.HTTP_303_SEE_OTHER)
+    
+    # Log de l'activité
+    await log_activity(
+        action="abandon_vote",
+        subject_id=subject_id,
+        user=current_user,
+        description=f"Abandon de la session de vote pour le sujet '{subject.name}'",
+        details="Session annulée - retour à l'émission d'idées possible",
+        request=request
+    )
+    
+    # Redirection vers la page d'origine ou par défaut vers /gestionnaire/subjects
+    referer = request.headers.get("referer", "/gestionnaire/subjects")
+    if "subjects" in referer:
+        return RedirectResponse(url="/gestionnaire/subjects", status_code=status.HTTP_303_SEE_OTHER)
+    else:
+        return RedirectResponse(url="/gestionnaire/dashboard", status_code=status.HTTP_303_SEE_OTHER)
 
 @router.post("/gestionnaire/subject/{subject_id}/create_and_add_user")
 async def create_and_add_user_route(
@@ -253,3 +428,126 @@ async def import_users_route(
         request.session["error_message"] = f"Erreur lors de l'import: {str(e)}"
     
     return RedirectResponse(url=f"/gestionnaire/subject/{subject_id}/manage_users", status_code=status.HTTP_303_SEE_OTHER)
+
+# Nouvelles routes pour actions groupées
+@router.post("/gestionnaire/subjects/batch_activate_emission")
+async def batch_activate_emission(request: Request, subject_ids: List[str] = Form(...), current_user: User = Depends(get_current_gestionnaire)):
+    """
+    Active l'émission d'idées pour plusieurs sujets en même temps
+    """
+    success_count = 0
+    failed_subjects = []
+    
+    for subject_id in subject_ids:
+        try:
+            subject = await activate_emission(subject_id)
+            if subject and str(current_user.id) in subject.gestionnaires_ids:
+                # Log de l'activité
+                await log_activity(
+                    action="activate_emission",
+                    subject_id=subject_id,
+                    user=current_user,
+                    description=f"Activation en lot de l'émission d'idées pour le sujet '{subject.name}'",
+                    details="Action groupée",
+                    request=request
+                )
+                success_count += 1
+            else:
+                failed_subjects.append(subject_id)
+        except Exception:
+            failed_subjects.append(subject_id)
+    
+    if success_count > 0:
+        request.session["success_message"] = f"Émission d'idées activée pour {success_count} sujet(s)."
+    if failed_subjects:
+        request.session["error_message"] = f"Échec pour {len(failed_subjects)} sujet(s)."
+    
+    return RedirectResponse(url="/gestionnaire/subjects", status_code=status.HTTP_303_SEE_OTHER)
+
+@router.post("/gestionnaire/subjects/batch_deactivate_emission")
+async def batch_deactivate_emission(request: Request, subject_ids: List[str] = Form(...), current_user: User = Depends(get_current_gestionnaire)):
+    """
+    Désactive l'émission d'idées pour plusieurs sujets en même temps
+    """
+    success_count = 0
+    failed_subjects = []
+    
+    for subject_id in subject_ids:
+        try:
+            subject = await deactivate_emission(subject_id)
+            if subject and str(current_user.id) in subject.gestionnaires_ids:
+                # Log de l'activité
+                await log_activity(
+                    action="deactivate_emission",
+                    subject_id=subject_id,
+                    user=current_user,
+                    description=f"Désactivation en lot de l'émission d'idées pour le sujet '{subject.name}'",
+                    details="Action groupée",
+                    request=request
+                )
+                success_count += 1
+            else:
+                failed_subjects.append(subject_id)
+        except Exception:
+            failed_subjects.append(subject_id)
+    
+    if success_count > 0:
+        request.session["success_message"] = f"Émission d'idées désactivée pour {success_count} sujet(s)."
+    if failed_subjects:
+        request.session["error_message"] = f"Échec pour {len(failed_subjects)} sujet(s)."
+    
+    return RedirectResponse(url="/gestionnaire/subjects", status_code=status.HTTP_303_SEE_OTHER)
+
+@router.post("/gestionnaire/subjects/batch_activate_vote")
+async def batch_activate_vote(request: Request, subject_ids: List[str] = Form(...), current_user: User = Depends(get_current_gestionnaire)):
+    """
+    Active la session de vote pour plusieurs sujets en même temps
+    """
+    success_count = 0
+    failed_subjects = []
+    
+    for subject_id in subject_ids:
+        try:
+            subject = await activate_vote(subject_id)
+            if subject and str(current_user.id) in subject.gestionnaires_ids:
+                # Log de l'activité
+                await log_activity(
+                    action="activate_vote",
+                    subject_id=subject_id,
+                    user=current_user,
+                    description=f"Activation en lot de la session de vote pour le sujet '{subject.name}'",
+                    details="Action groupée - Émission d'idées automatiquement désactivée",
+                    request=request
+                )
+                success_count += 1
+            else:
+                failed_subjects.append(subject_id)
+        except Exception:
+            failed_subjects.append(subject_id)
+    
+    if success_count > 0:
+        request.session["success_message"] = f"Session de vote activée pour {success_count} sujet(s)."
+    if failed_subjects:
+        request.session["error_message"] = f"Échec pour {len(failed_subjects)} sujet(s)."
+    
+    return RedirectResponse(url="/gestionnaire/subjects", status_code=status.HTTP_303_SEE_OTHER)
+
+# Route pour afficher l'historique d'un sujet
+@router.get("/gestionnaire/subject/{subject_id}/history", response_class=HTMLResponse)
+async def subject_history(subject_id: str, request: Request, current_user: User = Depends(get_current_gestionnaire)):
+    """
+    Affiche l'historique des activités pour un sujet donné
+    """
+    subject = await get_subject(subject_id)
+    if not subject or str(current_user.id) not in subject.gestionnaires_ids:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sujet non trouvé ou vous n'êtes pas gestionnaire de ce sujet.")
+    
+    activities = await get_subject_activities(subject_id, limit=100)
+    
+    return templates.TemplateResponse("gestionnaire/subject_history.html", {
+        "request": request,
+        "subject": subject,
+        "activities": activities,
+        "current_user": current_user,
+        "show_sidebar": True
+    })

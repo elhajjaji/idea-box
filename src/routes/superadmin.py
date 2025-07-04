@@ -110,9 +110,12 @@ async def create_subject(request: Request, name: str = Form(...), description: O
             print(f"[ERREUR] Mauvais format d'ID pour gestionnaire : {user_id} ({e})")
             continue
         if user:
-            result = await add_role_to_user(str(user.id), "gestionnaire")
-            if not result:
-                print(f"[ERREUR] Impossible d'ajouter le rôle gestionnaire à l'utilisateur {user.email} (id={user.id})")
+            if "gestionnaire" in user.roles:
+                print(f"[INFO] L'utilisateur {user.email} (id={user.id}) a déjà le rôle gestionnaire.")
+            else:
+                result = await add_role_to_user(str(user.id), "gestionnaire")
+                if not result:
+                    print(f"[ERREUR] Impossible d'ajouter le rôle gestionnaire à l'utilisateur {user.email} (id={user.id})")
         else:
             print(f"[ERREUR] Utilisateur non trouvé pour l'id {user_id}")
 

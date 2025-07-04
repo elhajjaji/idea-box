@@ -1,0 +1,355 @@
+{% extends "base.html" %}
+
+{% block title %}Mes Sujets - Gestionnaire{% endblock %}
+
+{% block content %}
+<!-- Messages de notification -->
+{% if request.session.get('success_message') %}
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle me-2"></i>{{ request.session.pop('success_message') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+{% endif %}
+
+{% if request.session.get('error_message') %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>{{ request.session.pop('error_message') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-gray-800">
+        <i class="bi bi-collection me-2"></i>Mes Sujets
+    </h1>
+    <div class="text-end">
+        <span class="badge bg-primary fs-6">{{ subjects|length }} sujet(s)</span>
+    </div>
+</div>
+
+<!-- Filtres -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body py-3">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="searchSubjects" placeholder="Rechercher un sujet par nom...">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="filterEmission">
+                    <option value="">Tous les états émission</option>
+                    <option value="active">Émission active</option>
+                    <option value="inactive">Émission inactive</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="filterVote">
+                    <option value="">Tous les états vote</option>
+                    <option value="active">Vote actif</option>
+                    <option value="inactive">Vote inactif</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Actions groupées -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3 bg-light">
+        <div class="d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="bi bi-kanban me-2"></i>Sujets que vous gérez
+            </h6>
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-success btn-sm" onclick="batchAction('activate_emission')" disabled id="batchActivateEmission">
+                    <i class="bi bi-play-circle me-1"></i>Activer émission
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="batchAction('deactivate_emission')" disabled id="batchDeactivateEmission">
+                    <i class="bi bi-pause-circle me-1"></i>Désactiver émission
+                </button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="batchAction('activate_vote')" disabled id="batchActivateVote">
+                    <i class="bi bi-hand-thumbs-up me-1"></i>Activer vote
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if subjects %}
+            <form id="batchForm" method="post">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="border-0 ps-4" style="width: 50px;">
+                                    <input type="checkbox" class="form-check-input" id="selectAll">
+                                </th>
+                                <th class="border-0">Nom du sujet</th>
+                                <th class="border-0">Description</th>
+                                <th class="border-0 text-center">Émission</th>
+                                <th class="border-0 text-center">Vote</th>
+                                <th class="border-0 text-center">Utilisateurs</th>
+                                <th class="border-0 text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="subjectsTableBody">
+                            {% for subject in subjects %}
+                            <tr class="subject-row" 
+                                data-name="{{ subject.name|lower }}"
+                                data-emission="{{ 'active' if subject.emission_active else 'inactive' }}"
+                                data-vote="{{ 'active' if subject.vote_active else 'inactive' }}">
+                                <td class="ps-4">
+                                    <input type="checkbox" class="form-check-input subject-checkbox" name="subject_ids" value="{{ subject.id }}">
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="me-3">
+                                            <div class="bg-primary bg-opacity-10 rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                <i class="bi bi-folder-fill text-primary"></i>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0 fw-bold">{{ subject.name }}</h6>
+                                            <small class="text-muted">ID: {{ subject.id }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if subject.description %}
+                                        <span class="text-muted">{{ subject.description|truncate(80) }}</span>
+                                    {% else %}
+                                        <em class="text-muted">Aucune description</em>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group" role="group">
+                                        {% if subject.emission_active %}
+                                            <span class="badge bg-success me-2">
+                                                <i class="bi bi-play-circle-fill me-1"></i>Active
+                                            </span>
+                                            <button type="button" class="btn btn-outline-secondary btn-sm" 
+                                                    onclick="confirmSingleAction('deactivate_emission', '{{ subject.id }}', '{{ subject.name }}')" 
+                                                    title="Désactiver l'émission">
+                                                <i class="bi bi-pause"></i>
+                                            </button>
+                                        {% else %}
+                                            <span class="badge bg-secondary me-2">
+                                                <i class="bi bi-pause-circle me-1"></i>Inactive
+                                            </span>
+                                            <button type="button" class="btn btn-outline-success btn-sm" 
+                                                    onclick="confirmSingleAction('activate_emission', '{{ subject.id }}', '{{ subject.name }}')" 
+                                                    title="Activer l'émission">
+                                                <i class="bi bi-play"></i>
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group" role="group">
+                                        {% if subject.vote_active %}
+                                            <span class="badge bg-primary me-2">
+                                                <i class="bi bi-hand-thumbs-up-fill me-1"></i>Active
+                                            </span>
+                                            <div class="btn-group">
+                                                <button type="button" class="btn btn-outline-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown" title="Actions vote">
+                                                    <i class="bi bi-gear"></i>
+                                                </button>
+                                                <ul class="dropdown-menu">
+                                                    <li>
+                                                        <button type="button" class="dropdown-item" 
+                                                                onclick="confirmSingleAction('close_vote', '{{ subject.id }}', '{{ subject.name }}')">
+                                                            <i class="bi bi-check-circle me-2"></i>Clôturer
+                                                        </button>
+                                                    </li>
+                                                    <li>
+                                                        <button type="button" class="dropdown-item text-danger" 
+                                                                onclick="confirmSingleAction('abandon_vote', '{{ subject.id }}', '{{ subject.name }}')">
+                                                            <i class="bi bi-x-circle me-2"></i>Abandonner
+                                                        </button>
+                                                    </li>
+                                                </ul>
+                                            </div>
+                                        {% else %}
+                                            <span class="badge bg-secondary me-2">
+                                                <i class="bi bi-hand-thumbs-up me-1"></i>Inactive
+                                            </span>
+                                            {% if not subject.emission_active %}
+                                                <button type="button" class="btn btn-outline-primary btn-sm" 
+                                                        onclick="confirmSingleAction('activate_vote', '{{ subject.id }}', '{{ subject.name }}')" 
+                                                        title="Activer le vote">
+                                                    <i class="bi bi-hand-thumbs-up"></i>
+                                                </button>
+                                            {% else %}
+                                                <small class="text-muted">Désactivez l'émission d'abord</small>
+                                            {% endif %}
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-info">{{ subject.users_ids|length }} utilisateurs</span>
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group" role="group">
+                                        <a href="/gestionnaire/subject/{{ subject.id }}/manage_users" class="btn btn-sm btn-outline-info" title="Gérer les utilisateurs">
+                                            <i class="bi bi-people"></i>
+                                        </a>
+                                        <a href="/gestionnaire/subject/{{ subject.id }}/history" class="btn btn-sm btn-outline-secondary" title="Voir l'historique">
+                                            <i class="bi bi-clock-history"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </form>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+                <h5 class="mt-3 text-muted">Aucun sujet à gérer</h5>
+                <p class="text-muted">Vous n'êtes gestionnaire d'aucun sujet pour le moment.</p>
+                <p class="text-muted">Contactez un super administrateur pour vous assigner des sujets.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if subjects %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center">
+                <i class="bi bi-lightbulb text-warning mb-3" style="font-size: 2.5rem;"></i>
+                <h6 class="card-title">Gérer l'émission d'idées</h6>
+                <p class="card-text text-muted small">Utilisez les actions groupées ou individuelles pour contrôler l'émission d'idées.</p>
+                <div class="text-center">
+                    <span class="badge bg-success">{{ subjects|selectattr('emission_active')|list|length }} actives</span>
+                    <span class="badge bg-secondary">{{ subjects|rejectattr('emission_active')|list|length }} inactives</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center">
+                <i class="bi bi-hand-thumbs-up text-primary mb-3" style="font-size: 2.5rem;"></i>
+                <h6 class="card-title">Sessions de vote</h6>
+                <p class="card-text text-muted small">Contrôlez les sessions de vote et consultez les résultats.</p>
+                <div class="text-center">
+                    <span class="badge bg-primary">{{ subjects|selectattr('vote_active')|list|length }} actives</span>
+                    <span class="badge bg-secondary">{{ subjects|rejectattr('vote_active')|list|length }} inactives</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center">
+                <i class="bi bi-kanban text-info mb-3" style="font-size: 2.5rem;"></i>
+                <h6 class="card-title">Tableau de bord</h6>
+                <p class="card-text text-muted small">Retournez au tableau de bord principal pour une vue d'ensemble.</p>
+                <a href="/gestionnaire/dashboard" class="btn btn-info btn-sm">
+                    <i class="bi bi-arrow-right me-1"></i>Tableau de bord
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Gestion des checkboxes
+document.getElementById('selectAll').addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('.subject-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = this.checked;
+    });
+    updateBatchButtons();
+});
+
+document.querySelectorAll('.subject-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', updateBatchButtons);
+});
+
+function updateBatchButtons() {
+    const checkedBoxes = document.querySelectorAll('.subject-checkbox:checked');
+    const hasSelection = checkedBoxes.length > 0;
+    
+    document.getElementById('batchActivateEmission').disabled = !hasSelection;
+    document.getElementById('batchDeactivateEmission').disabled = !hasSelection;
+    document.getElementById('batchActivateVote').disabled = !hasSelection;
+}
+
+function batchAction(action) {
+    const checkedBoxes = document.querySelectorAll('.subject-checkbox:checked');
+    if (checkedBoxes.length === 0) {
+        alert('Veuillez sélectionner au moins un sujet.');
+        return;
+    }
+    
+    const actionNames = {
+        'activate_emission': 'activer l\'émission d\'idées',
+        'deactivate_emission': 'désactiver l\'émission d\'idées',
+        'activate_vote': 'activer la session de vote'
+    };
+    
+    if (confirm(`Êtes-vous sûr de vouloir ${actionNames[action]} pour ${checkedBoxes.length} sujet(s) ?`)) {
+        const form = document.getElementById('batchForm');
+        form.action = `/gestionnaire/subjects/batch_${action}`;
+        form.submit();
+    }
+}
+
+// Filtres
+document.getElementById('searchSubjects').addEventListener('input', applyFilters);
+document.getElementById('filterEmission').addEventListener('change', applyFilters);
+document.getElementById('filterVote').addEventListener('change', applyFilters);
+
+function applyFilters() {
+    const searchTerm = document.getElementById('searchSubjects').value.toLowerCase();
+    const emissionFilter = document.getElementById('filterEmission').value;
+    const voteFilter = document.getElementById('filterVote').value;
+    
+    const rows = document.querySelectorAll('.subject-row');
+    
+    rows.forEach(row => {
+        const name = row.dataset.name;
+        const emission = row.dataset.emission;
+        const vote = row.dataset.vote;
+        
+        const matchesSearch = searchTerm === '' || name.includes(searchTerm);
+        const matchesEmission = emissionFilter === '' || emission === emissionFilter;
+        const matchesVote = voteFilter === '' || vote === voteFilter;
+        
+        if (matchesSearch && matchesEmission && matchesVote) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+// Confirmation d'action unique
+function confirmSingleAction(action, subjectId, subjectName) {
+    const actionNames = {
+        'activate_emission': 'activer l\'émission d\'idées',
+        'deactivate_emission': 'désactiver l\'émission d\'idées',
+        'activate_vote': 'activer la session de vote',
+        'close_vote': 'clôturer la session de vote',
+        'abandon_vote': 'abandonner la session de vote'
+    };
+    
+    if (confirm(`Êtes-vous sûr de vouloir ${actionNames[action]} pour "${subjectName}" ?`)) {
+        const form = document.createElement('form');
+        form.method = 'post';
+        form.action = `/gestionnaire/subject/${subjectId}/${action}`;
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+{% endblock %}

@@ -1,13 +1,17 @@
 from src.models.user import User
 from src.services.database import Database
 from typing import List, Optional
+from bson import ObjectId
 
 async def create_user(user: User) -> User:
     await Database.engine.save(user)
     return user
 
 async def get_user(user_id: str) -> Optional[User]:
-    return await Database.engine.find_one(User, User.id == user_id)
+    try:
+        return await Database.engine.find_one(User, User.id == ObjectId(user_id))
+    except Exception:
+        return None
 
 async def get_users() -> List[User]:
     return await Database.engine.find(User)
