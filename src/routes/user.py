@@ -178,7 +178,19 @@ async def user_ideas(request: Request, current_user: User = Depends(get_current_
     if isinstance(current_user, RedirectResponse):
         return current_user
     ideas = await Database.engine.find(Idea, Idea.user_id == str(current_user.id))
-    return templates.TemplateResponse("user/my_ideas.html", {"request": request, "ideas": ideas, "current_user": current_user, "show_sidebar": True})
+    from src.services.subject_service import get_subject
+    ideas_with_subject = []
+    for idea in ideas:
+        subject = await get_subject(idea.subject_id)
+        subject_name = subject.name if subject else idea.subject_id
+        ideas_with_subject.append({
+            "title": idea.title,
+            "description": idea.description,
+            "votes": idea.votes,
+            "created_at": idea.created_at,
+            "subject_name": subject_name
+        })
+    return templates.TemplateResponse("user/my_ideas.html", {"request": request, "ideas": ideas_with_subject, "current_user": current_user, "show_sidebar": True})
 
 @router.post("/user/idea/{idea_id}/vote")
 async def vote_idea(
