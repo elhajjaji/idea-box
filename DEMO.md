@@ -120,6 +120,13 @@ Le script supprime **toutes les données existantes** avant de générer les nou
 - **Mot de passe** : `demo123`
 - **Accès** : Gestion des sujets assignés
 
+### Invités (exemples)
+- **Email** : `bob.bernard@example.com`
+- **Mot de passe** : `demo123`
+- **Accès** : Participation aux sujets
+
+> 💡 **Astuce** : Tous les comptes utilisent le mot de passe `demo123` sauf le super admin
+
 ---
 
 ## 🎬 Scénarios de démonstration
@@ -215,6 +222,16 @@ Le script supprime **toutes les données existantes** avant de générer les nou
 3. Préparez un fichier d'import test
 4. Effectuez l'import et vérifiez les résultats
 
+#### Étape 5 : Configuration de l'organisme
+1. Naviguez vers **"Paramètres Système"**
+2. **Personnalisez l'organisme** :
+   - Nom de l'organisation
+   - Description/slogan
+   - **Upload du logo** (formats PNG, JPG, SVG)
+   - Couleurs de la charte graphique
+3. **Prévisualisez** les changements
+4. **Sauvegardez** et observez la mise à jour de l'interface
+
 ---
 
 ## 🔍 Fonctionnalités par rôle
@@ -247,7 +264,8 @@ Le script supprime **toutes les données existantes** avant de générer les nou
 | **Gestion des utilisateurs** | CRUD complet des utilisateurs | `/superadmin/users` |
 | **Gestion des sujets** | CRUD complet des sujets | `/superadmin/subjects` |
 | **Import d'utilisateurs** | Import CSV en masse | `/superadmin/import-users` |
-| **Paramètres système** | Configuration globale | `/superadmin/settings` |
+| **Paramètres système** | Configuration globale et personnalisation | `/superadmin/settings` |
+| **Configuration organisme** | Logo, nom, couleurs de l'organisation | `/superadmin/organization` |
 
 > 💡 **Astuce** : Tous les comptes utilisent le mot de passe `demo123` sauf le super admin
 
@@ -322,6 +340,17 @@ Le script supprime **toutes les données existantes** avant de générer les nou
 - [ ] Modification d'idées existantes
 - [ ] Gestion des participants
 - [ ] Promotion d'invités
+
+#### Tests de personnalisation
+
+#### 🏢 Configuration de l'organisme
+- [ ] Modification du nom de l'organisation
+- [ ] Upload et affichage du logo
+- [ ] Personnalisation des couleurs (charte graphique)
+- [ ] Gestion des informations de contact
+- [ ] Prévisualisation des changements
+- [ ] Suppression du logo
+- [ ] Validation des formats de fichiers
 
 #### 👑 Administration
 - [ ] Création d'utilisateurs avec validation
@@ -490,6 +519,8 @@ Pour toute question ou problème :
 - ✅ Importation en masse d'utilisateurs (CSV)
 - ✅ Vue d'ensemble des statistiques
 - ✅ Configuration des paramètres globaux
+- ✅ **Personnalisation de l'organisme** (logo, nom, couleurs)
+- ✅ **Upload et gestion des fichiers** (logos, documents)
 
 ### Gestionnaire
 - ✅ Activation/désactivation de l'émission d'idées
@@ -614,3 +645,60 @@ Pour toute question ou problème durant la démonstration :
 **🎉 Bonne démonstration !**
 
 *Idea Box - Plateforme collaborative de gestion d'idées*
+
+## 🏢 Configuration de l'Organisme
+
+**Idea Box** permet maintenant de personnaliser entièrement l'identité de votre organisation à travers une interface dédiée accessible aux super administrateurs.
+
+### Fonctionnalités disponibles
+
+#### 📝 Informations générales
+- **Nom de l'organisation** : Affiché dans toute l'interface
+- **Description/Slogan** : Message d'accueil personnalisé
+- **Informations de contact** : Site web, email, téléphone, adresse
+
+#### 🎨 Identité visuelle
+- **Logo personnalisé** : Upload d'images (PNG, JPG, SVG, GIF)
+- **Charte graphique** : 3 couleurs personnalisables
+  - Couleur principale (boutons, liens)
+  - Couleur secondaire (éléments neutres)
+  - Couleur d'accent (notifications, badges)
+
+#### 👁️ Prévisualisation
+- **Aperçu en temps réel** : Visualisation des changements
+- **Simulation d'interface** : Voir l'impact sur l'expérience utilisateur
+- **Validation instantanée** : Contrôle des formats et couleurs
+
+### Comment y accéder
+
+1. **Connexion Super Admin** : `admin@example.com` / `admin123`
+2. **Menu SuperAdmin** → **"Configuration organisme"**
+3. **Ou directement** : http://localhost:8000/superadmin/organization
+
+### Exemple d'utilisation
+
+```bash
+# 1. Démarrer l'application
+docker-compose up -d
+
+# 2. Se connecter en tant que super admin
+# http://localhost:8000/auth/login
+
+# 3. Accéder à la configuration
+# SuperAdmin → Configuration organisme
+
+# 4. Personnaliser votre organisation
+# - Uploader votre logo
+# - Choisir vos couleurs
+# - Ajouter vos informations
+
+# 5. Prévisualiser le résultat
+# Bouton "Prévisualiser"
+```
+
+### Formats supportés
+- **Logo** : PNG, JPG, JPEG, SVG, GIF (max 5 MB)
+- **Couleurs** : Format hexadécimal (#RRGGBB)
+- **Taille recommandée** : Logo 200x100px pour un meilleur rendu
+
+---

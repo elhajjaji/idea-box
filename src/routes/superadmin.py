@@ -41,7 +41,9 @@ async def superadmin_dashboard(request: Request, current_user: User = Depends(ge
         subjects_for_template.append(subject_dict)
     user_emails = {str(user.id): user.email for user in users}
     
-    return templates.TemplateResponse("superadmin/dashboard.html", {
+    # Préparer le contexte avec les informations de l'organisation
+    from src.utils.template_helpers import add_organization_context
+    context = {
         "request": request, 
         "users": users, 
         "subjects": subjects_for_template, 
@@ -49,7 +51,12 @@ async def superadmin_dashboard(request: Request, current_user: User = Depends(ge
         "user_emails": user_emails, 
         "metrics": metrics,
         "show_sidebar": True
-    })
+    }
+    
+    # Ajouter les informations de l'organisation
+    context = await add_organization_context(context)
+    
+    return templates.TemplateResponse("superadmin/dashboard.html", context)
 
 @router.get("/superadmin/users/add", response_class=HTMLResponse)
 async def add_user_form(request: Request, current_user: User = Depends(get_current_superadmin)):
@@ -61,12 +68,14 @@ async def add_user_form(request: Request, current_user: User = Depends(get_curre
         subject_dict["id"] = str(subject.id)
         subjects_for_template.append(subject_dict)
     
-    return templates.TemplateResponse("superadmin/add_user.html", {
+    from src.utils.template_helpers import add_organization_context
+    context = await add_organization_context({
         "request": request, 
         "current_user": current_user, 
         "subjects": subjects_for_template,
         "show_sidebar": True
     })
+    return templates.TemplateResponse("superadmin/add_user.html", context)
 
 @router.post("/superadmin/users/add", response_class=HTMLResponse)
 async def add_user(
@@ -133,12 +142,21 @@ async def add_user(
 
 @router.get("/superadmin/users/import", response_class=HTMLResponse)
 async def import_users_form(request: Request, current_user: User = Depends(get_current_superadmin)):
-    return templates.TemplateResponse("superadmin/import_users.html", {"request": request})
+    from src.utils.template_helpers import add_organization_context
+    context = await add_organization_context({"request": request, "current_user": current_user})
+    return templates.TemplateResponse("superadmin/import_users.html", context)
 
 @router.post("/superadmin/users/import", response_class=HTMLResponse)
 async def import_users(request: Request, file: UploadFile = File(...), current_user: User = Depends(get_current_superadmin)):
+    from src.utils.template_helpers import add_organization_context
+    
     if not file.filename.endswith(".csv"):
-        return templates.TemplateResponse("superadmin/import_users.html", {"request": request, "error": "Veuillez télécharger un fichier CSV."})
+        context = await add_organization_context({
+            "request": request, 
+            "current_user": current_user, 
+            "error": "Veuillez télécharger un fichier CSV."
+        })
+        return templates.TemplateResponse("superadmin/import_users.html", context)
 
     content = await file.read()
     csv_file = io.StringIO(content.decode("utf-8"))
@@ -168,12 +186,25 @@ async def import_users(request: Request, file: UploadFile = File(...), current_u
         except Exception as e:
             errors.append(f"Erreur lors de l'importation de la ligne {row}: {e}")
 
-    return templates.TemplateResponse("superadmin/import_users.html", {"request": request, "message": f"{imported_count} utilisateurs importés avec succès.", "errors": errors})
+    from src.utils.template_helpers import add_organization_context
+    context = await add_organization_context({
+        "request": request,
+        "current_user": current_user,
+        "message": f"{imported_count} utilisateurs importés avec succès.",
+        "errors": errors
+    })
+    return templates.TemplateResponse("superadmin/import_users.html", context)
 
 @router.get("/superadmin/subjects/create", response_class=HTMLResponse)
 async def create_subject_form(request: Request, current_user: User = Depends(get_current_superadmin)):
+    from src.utils.template_helpers import add_organization_context
     users = await get_users()
-    return templates.TemplateResponse("superadmin/create_subject.html", {"request": request, "users": users})
+    context = await add_organization_context({
+        "request": request,
+        "current_user": current_user,
+        "users": users
+    })
+    return templates.TemplateResponse("superadmin/create_subject.html", context)
 
 @router.post("/superadmin/subjects/create", response_class=HTMLResponse)
 async def create_subject(request: Request, name: str = Form(...), description: Optional[str] = Form(None), gestionnaires_ids: List[str] = Form([]), current_user: User = Depends(get_current_superadmin)):
@@ -202,14 +233,26 @@ async def create_subject(request: Request, name: str = Form(...), description: O
 @router.get("/superadmin/subjects/{subject_id}/edit", response_class=HTMLResponse)
 async def edit_subject_form(subject_id: str, request: Request, current_user: User = Depends(get_current_superadmin)):
     try:
+        from src.utils.template_helpers import add_organization_context
         subject = await Database.engine.find_one(Subject, Subject.id == ObjectId(subject_id))
         if not subject:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sujet non trouvé")
         
         users = await get_users()
-        return templates.TemplateResponse("superadmin/edit_subject.html", {"request": request, "subject": subject, "users": users, "current_user": current_user, "show_sidebar": True})
+        context = await add_organization_context({
+            "request": request, 
+            "subject": subject, 
+            "users": users, 
+            "current_user": current_user
+        })
+        return templates.TemplateResponse("superadmin/edit_subject.html", context)
     except Exception as e:
-        return templates.TemplateResponse("superadmin/edit_subject.html", {"request": request, "error": f"Erreur: {e}", "current_user": current_user, "show_sidebar": True})
+        context = await add_organization_context({
+            "request": request, 
+            "error": f"Erreur: {e}", 
+            "current_user": current_user
+        })
+        return templates.TemplateResponse("superadmin/edit_subject.html", context)
 
 @router.post("/superadmin/subjects/{subject_id}/edit", response_class=HTMLResponse)
 async def edit_subject(subject_id: str, request: Request, name: str = Form(...), description: Optional[str] = Form(None), gestionnaires_ids: List[str] = Form([]), current_user: User = Depends(get_current_superadmin)):
@@ -244,25 +287,40 @@ async def edit_subject(subject_id: str, request: Request, name: str = Form(...),
         users = await get_users()
         subject = await Database.engine.find_one(Subject, Subject.id == ObjectId(subject_id)) # Re-fetch subject to get updated gestionnaires_ids
 
-        return templates.TemplateResponse("superadmin/edit_subject.html", {
+        from src.utils.template_helpers import add_organization_context
+        context = await add_organization_context({
             "request": request,
             "subject": subject,
             "users": users,
             "message": "Sujet modifié avec succès !",
-            "current_user": current_user,
-            "show_sidebar": True
+            "current_user": current_user
         })
+        return templates.TemplateResponse("superadmin/edit_subject.html", context)
     except Exception as e:
+        from src.utils.template_helpers import add_organization_context
         users = await get_users()
-        return templates.TemplateResponse("superadmin/edit_subject.html", {"request": request, "error": f"Erreur: {e}", "users": users, "current_user": current_user, "show_sidebar": True})
+        context = await add_organization_context({
+            "request": request, 
+            "error": f"Erreur: {e}", 
+            "users": users, 
+            "current_user": current_user
+        })
+        return templates.TemplateResponse("superadmin/edit_subject.html", context)
 
 @router.get("/superadmin/users", response_class=HTMLResponse)
 async def superadmin_users(request: Request, current_user: User = Depends(get_current_superadmin)):
+    from src.utils.template_helpers import add_organization_context
     users = await get_users()
-    return templates.TemplateResponse("superadmin/users.html", {"request": request, "users": users, "current_user": current_user, "show_sidebar": True})
+    context = await add_organization_context({
+        "request": request, 
+        "users": users, 
+        "current_user": current_user
+    })
+    return templates.TemplateResponse("superadmin/users.html", context)
 
 @router.get("/superadmin/subjects", response_class=HTMLResponse)
 async def superadmin_subjects(request: Request, current_user: User = Depends(get_current_superadmin)):
+    from src.utils.template_helpers import add_organization_context
     subjects = await Database.engine.find(Subject)
     # Create a new list of subjects with string IDs
     subjects_for_template = []
@@ -272,11 +330,22 @@ async def superadmin_subjects(request: Request, current_user: User = Depends(get
         subjects_for_template.append(subject_dict)
     users = await get_users()
     user_emails = {str(user.id): user.email for user in users}
-    return templates.TemplateResponse("superadmin/subjects.html", {"request": request, "subjects": subjects_for_template, "current_user": current_user, "user_emails": user_emails, "show_sidebar": True})
+    context = await add_organization_context({
+        "request": request, 
+        "subjects": subjects_for_template, 
+        "current_user": current_user, 
+        "user_emails": user_emails
+    })
+    return templates.TemplateResponse("superadmin/subjects.html", context)
 
 @router.get("/superadmin/settings", response_class=HTMLResponse)
 async def superadmin_settings(request: Request, current_user: User = Depends(get_current_superadmin)):
-    return templates.TemplateResponse("superadmin/settings.html", {"request": request, "current_user": current_user, "show_sidebar": True})
+    from src.utils.template_helpers import add_organization_context
+    context = await add_organization_context({
+        "request": request, 
+        "current_user": current_user
+    })
+    return templates.TemplateResponse("superadmin/settings.html", context)
 
 @router.get("/superadmin/users/{user_id}/edit", response_class=HTMLResponse)
 async def edit_user_form(user_id: str, request: Request, current_user: User = Depends(get_current_superadmin)):
@@ -295,13 +364,15 @@ async def edit_user_form(user_id: str, request: Request, current_user: User = De
             subject_dict["id"] = str(subject.id)
             subjects_for_template.append(subject_dict)
         
-        return templates.TemplateResponse("superadmin/edit_user.html", {
+        from src.utils.template_helpers import add_organization_context
+        context = await add_organization_context({
             "request": request,
             "current_user": current_user,
             "user_to_edit": user_to_edit,
             "subjects": subjects_for_template,
             "show_sidebar": True
         })
+        return templates.TemplateResponse("superadmin/edit_user.html", context)
     except Exception as e:
         print(f"❌ Erreur lors de la récupération de l'utilisateur: {e}")
         return RedirectResponse(url="/superadmin/users", status_code=303)

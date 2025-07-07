@@ -1,0 +1,489 @@
+{% extends "base.html" %}
+
+{% block title %}Configuration de l'Organisation{% endblock %}
+
+{% block head %}
+<style>
+    .color-preview {
+        width: 40px;
+        height: 40px;
+        border-radius: 4px;
+        border: 2px solid #dee2e6;
+        display: inline-block;
+        vertical-align: middle;
+        margin-left: 10px;
+    }
+    
+    .logo-preview {
+        max-width: 200px;
+        max-height: 100px;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 10px;
+        background: #f8f9fa;
+    }
+    
+    .upload-area {
+        border: 2px dashed #dee2e6;
+        border-radius: 8px;
+        padding: 2rem;
+        text-align: center;
+        background: #f8f9fa;
+        transition: all 0.3s ease;
+    }
+    
+    .upload-area:hover {
+        border-color: var(--bs-primary);
+        background: rgba(13, 110, 253, 0.05);
+    }
+    
+    .upload-area.dragover {
+        border-color: var(--bs-success);
+        background: rgba(25, 135, 84, 0.1);
+    }
+    
+    .form-section {
+        background: white;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .section-title {
+        color: var(--bs-primary);
+        border-bottom: 2px solid var(--bs-primary);
+        padding-bottom: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-building me-2"></i>
+                    Configuration de l'Organisation
+                </h1>
+                <div>
+                    <a href="/superadmin/organization/preview" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-eye me-1"></i>
+                        Prévisualiser
+                    </a>
+                    <a href="/superadmin/dashboard" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>
+                        Retour
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Informations générales -->
+    <div class="form-section">
+        <h3 class="section-title">
+            <i class="fas fa-info-circle me-2"></i>
+            Informations Générales
+        </h3>
+        
+        <form method="post" action="/superadmin/organization/update">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">
+                            <strong>Nom de l'organisation *</strong>
+                        </label>
+                        <input type="text" class="form-control" id="name" name="name" 
+                               value="{{ organization.name if organization else '' }}" 
+                               required maxlength="100">
+                        <div class="form-text">Nom affiché dans l'interface</div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="description" class="form-label">
+                            <strong>Description / Slogan</strong>
+                        </label>
+                        <input type="text" class="form-control" id="description" name="description" 
+                               value="{{ organization.description if organization.description else '' }}" 
+                               maxlength="500">
+                        <div class="form-text">Description courte ou slogan</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charte graphique -->
+            <h4 class="mt-4 mb-3">
+                <i class="fas fa-palette me-2"></i>
+                Charte Graphique
+            </h4>
+            
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="primary_color" class="form-label">
+                            <strong>Couleur Principale</strong>
+                        </label>
+                        <div class="input-group">
+                            <input type="color" class="form-control form-control-color" 
+                                   id="primary_color" name="primary_color" 
+                                   value="{{ organization.primary_color if organization else '#007bff' }}"
+                                   onchange="updateColorPreview('primary_color', this.value)">
+                            <input type="text" class="form-control" 
+                                   value="{{ organization.primary_color if organization else '#007bff' }}"
+                                   id="primary_color_text" readonly>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="secondary_color" class="form-label">
+                            <strong>Couleur Secondaire</strong>
+                        </label>
+                        <div class="input-group">
+                            <input type="color" class="form-control form-control-color" 
+                                   id="secondary_color" name="secondary_color" 
+                                   value="{{ organization.secondary_color if organization else '#6c757d' }}"
+                                   onchange="updateColorPreview('secondary_color', this.value)">
+                            <input type="text" class="form-control" 
+                                   value="{{ organization.secondary_color if organization else '#6c757d' }}"
+                                   id="secondary_color_text" readonly>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="accent_color" class="form-label">
+                            <strong>Couleur d'Accent</strong>
+                        </label>
+                        <div class="input-group">
+                            <input type="color" class="form-control form-control-color" 
+                                   id="accent_color" name="accent_color" 
+                                   value="{{ organization.accent_color if organization else '#28a745' }}"
+                                   onchange="updateColorPreview('accent_color', this.value)">
+                            <input type="text" class="form-control" 
+                                   value="{{ organization.accent_color if organization else '#28a745' }}"
+                                   id="accent_color_text" readonly>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Informations de contact -->
+            <h4 class="mt-4 mb-3">
+                <i class="fas fa-address-book me-2"></i>
+                Informations de Contact
+            </h4>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="website" class="form-label">
+                            <strong>Site Web</strong>
+                        </label>
+                        <input type="url" class="form-control" id="website" name="website" 
+                               value="{{ organization.website if organization.website else '' }}" 
+                               placeholder="https://www.example.com">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">
+                            <strong>Email de Contact</strong>
+                        </label>
+                        <input type="email" class="form-control" id="email" name="email" 
+                               value="{{ organization.email if organization.email else '' }}" 
+                               placeholder="contact@example.com">
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">
+                            <strong>Téléphone</strong>
+                        </label>
+                        <input type="tel" class="form-control" id="phone" name="phone" 
+                               value="{{ organization.phone if organization.phone else '' }}" 
+                               placeholder="+33 1 23 45 67 89">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="address" class="form-label">
+                            <strong>Adresse</strong>
+                        </label>
+                        <textarea class="form-control" id="address" name="address" 
+                                  rows="3" maxlength="300">{{ organization.address if organization.address else '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between mt-4">
+                <a href="/superadmin/organization/preview" class="btn btn-outline-info">
+                    <i class="fas fa-eye me-1"></i>
+                    Prévisualiser
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i>
+                    Sauvegarder les Informations
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Gestion du logo -->
+    <div class="form-section">
+        <h3 class="section-title">
+            <i class="fas fa-image me-2"></i>
+            Logo de l'Organisation
+        </h3>
+        
+        <div class="row">
+            <div class="col-md-6">
+                {% if logo_url %}
+                <div class="current-logo mb-4">
+                    <h5>Logo Actuel</h5>
+                    <div class="text-center">
+                        <img src="{{ logo_url }}" alt="Logo actuel" class="logo-preview">
+                    </div>
+                    <div class="mt-2 text-center">
+                        <form method="post" action="/superadmin/organization/delete-logo" style="display: inline;">
+                            <button type="submit" class="btn btn-outline-danger btn-sm"
+                                    onclick="return confirm('Êtes-vous sûr de vouloir supprimer le logo ?')">
+                                <i class="fas fa-trash me-1"></i>
+                                Supprimer
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center text-muted mb-4">
+                    <i class="fas fa-image fa-3x"></i>
+                    <p class="mt-2">Aucun logo configuré</p>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="col-md-6">
+                <h5>Upload d'un Nouveau Logo</h5>
+                <form method="post" action="/superadmin/organization/upload-logo" 
+                      enctype="multipart/form-data">
+                    <div class="upload-area" id="uploadArea">
+                        <i class="fas fa-cloud-upload-alt fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-2">
+                            Glissez-déposez votre logo ici ou cliquez pour sélectionner
+                        </p>
+                        <input type="file" class="form-control" id="logo" name="logo" 
+                               accept=".png,.jpg,.jpeg,.svg,.gif">
+                        <small class="text-muted">
+                            Formats acceptés: PNG, JPG, SVG, GIF<br>
+                            Taille maximale: 5 MB
+                        </small>
+                    </div>
+                    
+                    <div class="mt-3 text-center">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-upload me-1"></i>
+                            Uploader le Logo
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function updateColorPreview(colorId, value) {
+    document.getElementById(colorId + '_text').value = value;
+}
+
+// Drag and drop pour l'upload
+const uploadArea = document.getElementById('uploadArea');
+const fileInput = document.getElementById('logo');
+
+uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('dragover');
+});
+
+uploadArea.addEventListener('dragleave', () => {
+    uploadArea.classList.remove('dragover');
+});
+
+uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        fileInput.files = files;
+    }
+});
+
+uploadArea.addEventListener('click', () => {
+    fileInput.click();
+});
+
+// Synchronisation des couleurs
+function updateColorPreview(colorId, value) {
+    const textInput = document.getElementById(colorId + '_text');
+    if (textInput) {
+        textInput.value = value;
+    }
+}
+
+// Validation du formulaire
+function validateForm() {
+    const name = document.getElementById('name').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const website = document.getElementById('website').value.trim();
+    
+    // Validation du nom (requis)
+    if (!name) {
+        alert('Le nom de l\'organisation est requis.');
+        return false;
+    }
+    
+    // Validation de l'email (format)
+    if (email && !isValidEmail(email)) {
+        alert('Format d\'email invalide.');
+        return false;
+    }
+    
+    // Validation de l'URL
+    if (website && !isValidURL(website)) {
+        alert('Format d\'URL invalide. L\'URL doit commencer par http:// ou https://');
+        return false;
+    }
+    
+    return true;
+}
+
+function isValidEmail(email) {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+}
+
+function isValidURL(url) {
+    try {
+        new URL(url);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+// Ajouter la validation au formulaire
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form[action="/superadmin/organization/update"]');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            if (!validateForm()) {
+                e.preventDefault();
+                return;
+            }
+            
+            // Désactiver le bouton pour éviter les soumissions multiples
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Sauvegarde en cours...';
+            }
+        });
+    }
+    
+    // Même protection pour le formulaire d'upload
+    const uploadForm = document.querySelector('form[action="/superadmin/organization/upload-logo"]');
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', function(e) {
+            const fileInput = document.getElementById('logo');
+            if (!fileInput.files.length) {
+                e.preventDefault();
+                alert('Veuillez sélectionner un fichier avant de soumettre.');
+                return;
+            }
+            
+            const submitBtn = uploadForm.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Upload en cours...';
+            }
+        });
+    }
+    
+    // Synchro couleur principale
+    const primaryColorInput = document.getElementById('primary_color');
+    const primaryColorText = document.getElementById('primary_color_text');
+    
+    if (primaryColorInput && primaryColorText) {
+        primaryColorInput.addEventListener('change', function() {
+            primaryColorText.value = this.value;
+        });
+    }
+    
+    // Synchro couleur secondaire
+    const secondaryColorInput = document.getElementById('secondary_color');
+    const secondaryColorText = document.getElementById('secondary_color_text');
+    
+    if (secondaryColorInput && secondaryColorText) {
+        secondaryColorInput.addEventListener('change', function() {
+            secondaryColorText.value = this.value;
+        });
+    }
+    
+    // Synchro couleur d'accent
+    const accentColorInput = document.getElementById('accent_color');
+    const accentColorText = document.getElementById('accent_color_text');
+    
+    if (accentColorInput && accentColorText) {
+        accentColorInput.addEventListener('change', function() {
+            accentColorText.value = this.value;
+        });
+    }
+});
+
+// Prévisualisation du fichier sélectionné
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        const file = e.target.files[0];
+        
+        // Validation du fichier
+        const validTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        
+        if (!validTypes.includes(file.type)) {
+            alert('Type de fichier non autorisé. Seuls les fichiers PNG et JPEG sont acceptés.');
+            fileInput.value = '';
+            return;
+        }
+        
+        if (file.size > maxSize) {
+            alert('Le fichier est trop volumineux. Taille maximale: 5MB');
+            fileInput.value = '';
+            return;
+        }
+        
+        // Créer un élément de prévisualisation sans supprimer l'input
+        const preview = document.createElement('div');
+        preview.innerHTML = `
+            <i class="fas fa-file-image fa-2x text-success mb-2"></i>
+            <p class="text-success mb-0">Fichier sélectionné: ${file.name}</p>
+            <small class="text-muted">Taille: ${(file.size / 1024 / 1024).toFixed(2)} MB</small>
+        `;
+        
+        // Cacher les éléments de base et ajouter la prévisualisation
+        uploadArea.querySelector('i').style.display = 'none';
+        uploadArea.querySelector('p').style.display = 'none';
+        uploadArea.querySelector('small').style.display = 'none';
+        
+        // Ajouter la prévisualisation avant l'input (pour le garder dans le DOM)
+        uploadArea.insertBefore(preview, fileInput);
+    }
+});
+</script>
+{% endblock %}

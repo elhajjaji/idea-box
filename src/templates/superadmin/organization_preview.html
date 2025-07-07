@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block title %}Prévisualisation - {{ organization.name }}{% endblock %}
+
+{% block head %}
+<style>
+    :root {
+        --primary-color: {{ organization.primary_color }};
+        --secondary-color: {{ organization.secondary_color }};
+        --accent-color: {{ organization.accent_color }};
+    }
+    
+    .preview-header {
+        background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+    }
+    
+    .preview-logo {
+        max-height: 80px;
+        filter: brightness(0) invert(1);
+    }
+    
+    .preview-card {
+        border: 1px solid var(--primary-color);
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .preview-card-header {
+        background: var(--primary-color);
+        color: white;
+        padding: 1rem;
+        font-weight: bold;
+    }
+    
+    .color-demo {
+        display: flex;
+        gap: 1rem;
+        margin: 1rem 0;
+    }
+    
+    .color-box {
+        width: 80px;
+        height: 80px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+    }
+    
+    .btn-primary-demo {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+    }
+    
+    .btn-secondary-demo {
+        background-color: var(--secondary-color);
+        border-color: var(--secondary-color);
+    }
+    
+    .btn-accent-demo {
+        background-color: var(--accent-color);
+        border-color: var(--accent-color);
+    }
+    
+    .contact-info {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header de prévisualisation -->
+    <div class="preview-header text-center">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-12">
+                    {% if logo_url %}
+                    <img src="{{ logo_url }}" alt="{{ organization.name }}" class="preview-logo me-3">
+                    {% endif %}
+                    <h1 class="display-4 d-inline-block mb-0">{{ organization.name }}</h1>
+                    {% if organization.description %}
+                    <p class="lead mt-2">{{ organization.description }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2>Prévisualisation de l'Interface</h2>
+                    <a href="/superadmin/organization" class="btn btn-outline-primary">
+                        <i class="fas fa-edit me-1"></i>
+                        Modifier
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Démonstration des couleurs -->
+            <div class="col-md-6 mb-4">
+                <div class="preview-card">
+                    <div class="preview-card-header">
+                        <i class="fas fa-palette me-2"></i>
+                        Charte Graphique
+                    </div>
+                    <div class="card-body">
+                        <h5>Couleurs Configurées</h5>
+                        <div class="color-demo">
+                            <div class="color-box" style="background-color: {{ organization.primary_color }}">
+                                <small>Principale</small>
+                            </div>
+                            <div class="color-box" style="background-color: {{ organization.secondary_color }}">
+                                <small>Secondaire</small>
+                            </div>
+                            <div class="color-box" style="background-color: {{ organization.accent_color }}">
+                                <small>Accent</small>
+                            </div>
+                        </div>
+                        
+                        <h6 class="mt-4">Exemples de Boutons</h6>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button class="btn btn-primary-demo">Bouton Principal</button>
+                            <button class="btn btn-secondary-demo">Bouton Secondaire</button>
+                            <button class="btn btn-accent-demo">Bouton Accent</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logo et branding -->
+            <div class="col-md-6 mb-4">
+                <div class="preview-card">
+                    <div class="preview-card-header">
+                        <i class="fas fa-image me-2"></i>
+                        Logo et Identité
+                    </div>
+                    <div class="card-body text-center">
+                        {% if logo_url %}
+                        <div class="mb-3">
+                            <img src="{{ logo_url }}" alt="{{ organization.name }}" 
+                                 style="max-width: 200px; max-height: 100px;">
+                        </div>
+                        <p class="text-success">
+                            <i class="fas fa-check-circle me-1"></i>
+                            Logo configuré
+                        </p>
+                        {% else %}
+                        <div class="text-muted">
+                            <i class="fas fa-image fa-3x mb-3"></i>
+                            <p>Aucun logo configuré</p>
+                        </div>
+                        {% endif %}
+                        
+                        <h4 style="color: var(--primary-color)">{{ organization.name }}</h4>
+                        {% if organization.description %}
+                        <p class="text-muted">{{ organization.description }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Informations de contact -->
+        {% if organization.website or organization.email or organization.phone or organization.address %}
+        <div class="row">
+            <div class="col-12 mb-4">
+                <div class="preview-card">
+                    <div class="preview-card-header">
+                        <i class="fas fa-address-book me-2"></i>
+                        Informations de Contact
+                    </div>
+                    <div class="card-body">
+                        <div class="contact-info">
+                            <div class="row">
+                                {% if organization.website %}
+                                <div class="col-md-6 mb-3">
+                                    <strong>
+                                        <i class="fas fa-globe me-2" style="color: var(--primary-color)"></i>
+                                        Site Web
+                                    </strong>
+                                    <br>
+                                    <a href="{{ organization.website }}" target="_blank" 
+                                       style="color: var(--primary-color)">
+                                        {{ organization.website }}
+                                    </a>
+                                </div>
+                                {% endif %}
+                                
+                                {% if organization.email %}
+                                <div class="col-md-6 mb-3">
+                                    <strong>
+                                        <i class="fas fa-envelope me-2" style="color: var(--primary-color)"></i>
+                                        Email
+                                    </strong>
+                                    <br>
+                                    <a href="mailto:{{ organization.email }}" 
+                                       style="color: var(--primary-color)">
+                                        {{ organization.email }}
+                                    </a>
+                                </div>
+                                {% endif %}
+                                
+                                {% if organization.phone %}
+                                <div class="col-md-6 mb-3">
+                                    <strong>
+                                        <i class="fas fa-phone me-2" style="color: var(--primary-color)"></i>
+                                        Téléphone
+                                    </strong>
+                                    <br>
+                                    <a href="tel:{{ organization.phone }}" 
+                                       style="color: var(--primary-color)">
+                                        {{ organization.phone }}
+                                    </a>
+                                </div>
+                                {% endif %}
+                                
+                                {% if organization.address %}
+                                <div class="col-md-6 mb-3">
+                                    <strong>
+                                        <i class="fas fa-map-marker-alt me-2" style="color: var(--primary-color)"></i>
+                                        Adresse
+                                    </strong>
+                                    <br>
+                                    {{ organization.address }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Simulation d'interface -->
+        <div class="row">
+            <div class="col-12 mb-4">
+                <div class="preview-card">
+                    <div class="preview-card-header">
+                        <i class="fas fa-desktop me-2"></i>
+                        Simulation de l'Interface Utilisateur
+                    </div>
+                    <div class="card-body">
+                        <!-- Simulation navbar -->
+                        <div class="border rounded p-3 mb-3" style="background: var(--primary-color); color: white;">
+                            <div class="d-flex align-items-center">
+                                {% if logo_url %}
+                                <img src="{{ logo_url }}" alt="{{ organization.name }}" 
+                                     style="height: 40px; margin-right: 1rem; filter: brightness(0) invert(1);">
+                                {% endif %}
+                                <h5 class="mb-0">{{ organization.name }}</h5>
+                                <div class="ms-auto">
+                                    <span class="btn btn-outline-light btn-sm me-2">Tableau de bord</span>
+                                    <span class="btn btn-outline-light btn-sm">Profil</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Simulation contenu -->
+                        <div class="border rounded p-3">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 style="color: var(--primary-color)">Tableau de Bord</h6>
+                                <div>
+                                    <span class="badge" style="background-color: var(--accent-color)">Actif</span>
+                                    <span class="badge" style="background-color: var(--secondary-color)">En attente</span>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="border rounded p-2 text-center" 
+                                         style="border-color: var(--primary-color) !important;">
+                                        <strong style="color: var(--primary-color)">42</strong>
+                                        <br>
+                                        <small>Idées Soumises</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="border rounded p-2 text-center" 
+                                         style="border-color: var(--accent-color) !important;">
+                                        <strong style="color: var(--accent-color)">18</strong>
+                                        <br>
+                                        <small>Votes Reçus</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="border rounded p-2 text-center" 
+                                         style="border-color: var(--secondary-color) !important;">
+                                        <strong style="color: var(--secondary-color)">5</strong>
+                                        <br>
+                                        <small>Sujets Actifs</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Boîte à Idées{% endblock %}</title>
+    <title>{% block title %}{{ organization.name if organization else 'Idea Box' }}{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         :root {
-            --primary-color: #4e73df;
-            --secondary-color: #5a5c69;
+            --primary-color: {{ organization.primary_color if organization and organization.primary_color else '#4e73df' }};
+            --secondary-color: {{ organization.secondary_color if organization and organization.secondary_color else '#5a5c69' }};
+            --accent-color: {{ organization.accent_color if organization and organization.accent_color else '#1cc88a' }};
             --success-color: #1cc88a;
             --info-color: #36b9cc;
             --warning-color: #f6c23e;
@@ -23,22 +24,87 @@
             font-size: 1.5rem;
         }
         
+        /* Structure de la page avec sidebar */
+        .page-container {
+            display: flex;
+            width: 100%;
+        }
+        
+        .sidebar-wrapper {
+            width: 250px;
+            min-height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 76px;
+            bottom: 0;
+            z-index: 1010;
+            transition: all 0.3s ease;
+        }
+        
+        .content-wrapper {
+            width: calc(100% - 250px);
+            margin-left: 250px;
+            padding-top: 54px; /* Hauteur du menu secondaire */
+            min-height: calc(100vh - 76px);
+            transition: all 0.3s ease;
+        }
+        
+        /* Version sans sidebar */
+        .no-sidebar .sidebar-wrapper {
+            transform: translateX(-250px);
+        }
+        
+        .no-sidebar .content-wrapper {
+            width: 100%;
+            margin-left: 0;
+        }
+        
+        /* Styles spécifiques pour la sidebar */
         .sidebar {
             min-height: 100vh;
-            background: linear-gradient(180deg, var(--primary-color) 10%, #224abe 100%);
+            background: linear-gradient(180deg, var(--primary-color) 10%, var(--secondary-color) 100%);
+            padding: 1.5rem 1rem;
+            overflow-y: auto;
         }
         
         .sidebar .nav-link {
             color: rgba(255, 255, 255, 0.8);
-            padding: 1rem;
+            padding: 0.75rem 1rem;
             border-radius: 0.35rem;
-            margin: 0.1rem 0;
+            margin: 0.2rem 0;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+        }
+        
+        .sidebar .nav-link i {
+            margin-right: 0.75rem;
+            font-size: 1.1rem;
         }
         
         .sidebar .nav-link:hover,
         .sidebar .nav-link.active {
             color: white;
             background-color: rgba(255, 255, 255, 0.1);
+            transform: translateX(5px);
+        }
+        
+        .sidebar-heading {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 1.5rem 0 0.5rem 0.5rem;
+        }
+        
+        .sidebar-brand {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .sidebar-brand img {
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
         }
         
         .card {
@@ -51,9 +117,33 @@
             border-radius: 0.35rem;
         }
         
+        /* Menu fixe en haut */
+        body {
+            padding-top: 130px; /* Espace pour le menu fixe + menu secondaire */
+        }
+        
+        /* Styles pour le menu secondaire */
+        .nav-pills .nav-link {
+            border: 2px solid transparent;
+            font-weight: 500;
+        }
+        
+        .nav-pills .nav-link:hover {
+            background: var(--primary-color) !important;
+            color: white !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(78, 115, 223, 0.3);
+        }
+        
+        .nav-pills .nav-link.active {
+            background: var(--primary-color) !important;
+            color: white !important;
+            box-shadow: 0 2px 8px rgba(78, 115, 223, 0.4);
+        }
+        
         .main-content {
             background-color: var(--light-color);
-            min-height: 100vh;
+            min-height: calc(100vh - 80px);
         }
         
         .footer {
@@ -219,11 +309,28 @@
         .dropdown-item {
             padding: 0.5rem 1rem;
             transition: all 0.3s ease;
+            border-radius: 8px;
+            margin: 2px 4px;
         }
 
         .dropdown-item:hover {
-            background: linear-gradient(135deg, rgba(78, 115, 223, 0.1) 0%, rgba(78, 115, 223, 0.05) 100%);
-            transform: translateX(2px);
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            transform: translateX(3px);
+        }
+
+        .dropdown-item:hover i {
+            color: white !important;
+        }
+
+        /* Styles pour la navbar */
+        .navbar .nav-link:hover {
+            transform: translateY(-1px);
+        }
+
+        .navbar-brand:hover {
+            transform: scale(1.02);
+            transition: all 0.3s ease;
         }
 
         /* Animations pour les métriques */
@@ -312,18 +419,80 @@
                 gap: 0.25rem;
             }
         }
+
+        /* Responsive pour la sidebar */
+        @media (max-width: 992px) {
+            .sidebar-wrapper {
+                transform: translateX(-250px);
+            }
+            
+            .content-wrapper {
+                width: 100%;
+                margin-left: 0;
+            }
+            
+            .sidebar-open .sidebar-wrapper {
+                transform: translateX(0);
+                box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            }
+            
+            .sidebar-toggle {
+                display: block !important;
+            }
+        }
+        
+        /* Bouton pour afficher/masquer la sidebar en mobile */
+        .sidebar-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            color: white;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            z-index: 1030;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar-toggle:hover {
+            transform: scale(1.1);
+        }
     </style>
 </head>
-<body>
+<body class="{% if not show_sidebar %}no-sidebar{% endif %}">
     <!-- Navigation principale -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow">
+    <nav class="navbar navbar-expand-lg navbar-dark shadow-sm fixed-top" style="background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%); backdrop-filter: blur(10px);">
         <div class="container-fluid">
-            <a class="navbar-brand" href="/">
-                <i class="bi bi-lightbulb-fill me-2"></i>
-                Boîte à Idées
+            <a class="navbar-brand d-flex align-items-center" href="/" style="text-decoration: none;">
+                {% if logo_url %}
+                    <img src="{{ logo_url }}" alt="Logo {{ organization.name if organization else 'Idea Box' }}" 
+                         class="me-2" style="height: 40px; width: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+                {% else %}
+                    <div class="me-2 d-flex align-items-center justify-content-center" 
+                         style="width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 8px;">
+                        <i class="bi bi-lightbulb-fill" style="font-size: 1.2rem;"></i>
+                    </div>
+                {% endif %}
+                <div>
+                    <div class="fw-bold" style="font-size: 1.3rem; line-height: 1.2;">
+                        {{ organization.name if organization else 'Idea Box' }}
+                    </div>
+                    {% if organization and organization.description %}
+                        <div class="small opacity-75" style="font-size: 0.8rem; margin-top: -2px;">
+                            {{ organization.description }}
+                        </div>
+                    {% endif %}
+                </div>
             </a>
             
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                    style="background: rgba(255,255,255,0.1); border-radius: 8px;">
                 <span class="navbar-toggler-icon"></span>
             </button>
             
@@ -331,7 +500,10 @@
                 <ul class="navbar-nav me-auto">
                     {% if current_user %}
                         <li class="nav-item">
-                            <a class="nav-link" href="/">
+                            <a class="nav-link px-3 py-2 rounded-pill me-2" href="/" 
+                               style="background: rgba(255,255,255,0.1); transition: all 0.3s ease;"
+                               onmouseover="this.style.background='rgba(255,255,255,0.2)'"
+                               onmouseout="this.style.background='rgba(255,255,255,0.1)'">
                                 <i class="bi bi-house me-1"></i>Accueil
                             </a>
                         </li>
@@ -339,36 +511,46 @@
                         <!-- Sous-menus pour chaque rôle -->
                         {% if "superadmin" in current_user.roles %}
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" id="superadminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="bi bi-shield-fill-check me-1 text-danger"></i>
+                                <a class="nav-link dropdown-toggle px-3 py-2 rounded-pill me-2" href="#" 
+                                   id="superadminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false"
+                                   style="background: rgba(220,53,69,0.2); transition: all 0.3s ease;"
+                                   onmouseover="this.style.background='rgba(220,53,69,0.3)'"
+                                   onmouseout="this.style.background='rgba(220,53,69,0.2)'">
+                                    <i class="bi bi-shield-fill-check me-1"></i>
                                     <span class="fw-semibold">Super Admin</span>
                                 </a>
-                                <ul class="dropdown-menu" aria-labelledby="superadminDropdown">
-                                    <li><a class="dropdown-item" href="/superadmin/dashboard">
-                                        <i class="bi bi-speedometer2 me-2"></i>Tableau de bord
+                                <ul class="dropdown-menu shadow-lg border-0" aria-labelledby="superadminDropdown" 
+                                    style="border-radius: 12px; background: white; min-width: 280px;">
+                                    <li><a class="dropdown-item py-2 px-3 rounded-3 m-1" href="/superadmin/dashboard"
+                                           style="transition: all 0.3s ease;">
+                                        <i class="bi bi-speedometer2 me-2" style="color: var(--primary-color);"></i>Tableau de bord
                                     </a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><h6 class="dropdown-header">Gestion des invités</h6></li>
-                                    <li><a class="dropdown-item" href="/superadmin/users">
-                                        <i class="bi bi-people me-2"></i>Tous les invités
+                                    <li><hr class="dropdown-divider mx-2"></li>
+                                    <li><h6 class="dropdown-header text-uppercase fw-bold" style="color: var(--primary-color); font-size: 0.7rem; letter-spacing: 1px;">
+                                        <i class="bi bi-people me-1"></i>Gestion des invités
+                                    </h6></li>
+                                    <li><a class="dropdown-item py-2 px-3 rounded-3 m-1" href="/superadmin/users">
+                                        <i class="bi bi-people me-2" style="color: var(--secondary-color);"></i>Tous les invités
                                     </a></li>
-                                    <li><a class="dropdown-item" href="/superadmin/users/add">
-                                        <i class="bi bi-person-plus me-2"></i>Ajouter un invité
+                                    <li><a class="dropdown-item py-2 px-3 rounded-3 m-1" href="/superadmin/users/add">
+                                        <i class="bi bi-person-plus me-2" style="color: var(--accent-color);"></i>Ajouter un invité
                                     </a></li>
-                                    <li><a class="dropdown-item" href="/superadmin/users/import">
-                                        <i class="bi bi-upload me-2"></i>Importer des invités
+                                    <li><a class="dropdown-item py-2 px-3 rounded-3 m-1" href="/superadmin/users/import">
+                                        <i class="bi bi-upload me-2" style="color: var(--info-color);"></i>Importer des invités
                                     </a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><h6 class="dropdown-header">Gestion des sujets</h6></li>
-                                    <li><a class="dropdown-item" href="/superadmin/subjects">
-                                        <i class="bi bi-collection me-2"></i>Tous les sujets
+                                    <li><hr class="dropdown-divider mx-2"></li>
+                                    <li><h6 class="dropdown-header text-uppercase fw-bold" style="color: var(--primary-color); font-size: 0.7rem; letter-spacing: 1px;">
+                                        <i class="bi bi-collection me-1"></i>Gestion des sujets
+                                    </h6></li>
+                                    <li><a class="dropdown-item py-2 px-3 rounded-3 m-1" href="/superadmin/subjects">
+                                        <i class="bi bi-collection me-2" style="color: var(--secondary-color);"></i>Tous les sujets
                                     </a></li>
-                                    <li><a class="dropdown-item" href="/superadmin/subjects/create">
-                                        <i class="bi bi-plus-circle me-2"></i>Créer un sujet
+                                    <li><a class="dropdown-item py-2 px-3 rounded-3 m-1" href="/superadmin/subjects/create">
+                                        <i class="bi bi-plus-circle me-2" style="color: var(--accent-color);"></i>Créer un sujet
                                     </a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="/superadmin/settings">
-                                        <i class="bi bi-gear me-2"></i>Paramètres système
+                                    <li><hr class="dropdown-divider mx-2"></li>
+                                    <li><a class="dropdown-item py-2 px-3 rounded-3 m-1" href="/superadmin/organization">
+                                        <i class="bi bi-building me-2" style="color: var(--warning-color);"></i>Paramètres de l'organisation
                                     </a></li>
                                 </ul>
                             </li>
@@ -376,40 +558,45 @@
                         
                         {% if "gestionnaire" in current_user.roles %}
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" id="gestionnaireDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="bi bi-kanban me-1 text-warning"></i>
+                                <a class="nav-link dropdown-toggle px-3 py-2 rounded-pill me-2" href="#" 
+                                   id="gestionnaireDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false"
+                                   style="background: rgba(255,193,7,0.2); transition: all 0.3s ease;"
+                                   onmouseover="this.style.background='rgba(255,193,7,0.3)'"
+                                   onmouseout="this.style.background='rgba(255,193,7,0.2)'">
+                                    <i class="bi bi-kanban me-1"></i>
                                     <span class="fw-semibold">Gestionnaire</span>
                                 </a>
-                                <ul class="dropdown-menu" aria-labelledby="gestionnaireDropdown">
-                                    <li><a class="dropdown-item" href="/gestionnaire/dashboard">
-                                        <i class="bi bi-speedometer2 me-2"></i>Tableau de bord
+                                <ul class="dropdown-menu shadow-lg border-0" aria-labelledby="gestionnaireDropdown"
+                                    style="border-radius: 12px; background: white; min-width: 280px;">
+                                    <li><a class="dropdown-item py-2 px-3 rounded-3 m-1" href="/gestionnaire/dashboard">
+                                        <i class="bi bi-speedometer2 me-2" style="color: var(--primary-color);"></i>Tableau de bord
                                     </a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><h6 class="dropdown-header">Gestion des sujets</h6></li>
-                                    <li><a class="dropdown-item" href="/gestionnaire/subjects">
-                                        <i class="bi bi-collection me-2"></i>Mes sujets
+                                    <li><hr class="dropdown-divider mx-2"></li>
+                                    <li><h6 class="dropdown-header text-uppercase fw-bold" style="color: var(--primary-color); font-size: 0.7rem; letter-spacing: 1px;">
+                                        <i class="bi bi-collection me-1"></i>Gestion des sujets
+                                    </h6></li>
+                                    <li><a class="dropdown-item py-2 px-3 rounded-3 m-1" href="/gestionnaire/subjects">
+                                        <i class="bi bi-collection me-2" style="color: var(--secondary-color);"></i>Mes sujets
                                     </a></li>
-                                    <li><a class="dropdown-item" href="/gestionnaire/subject/manage">
-                                        <i class="bi bi-gear me-2"></i>Gestion rapide
+                                    <li><a class="dropdown-item py-2 px-3 rounded-3 m-1" href="/gestionnaire/subject/manage">
+                                        <i class="bi bi-gear me-2" style="color: var(--accent-color);"></i>Gestion rapide
                                     </a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><h6 class="dropdown-header">Gestion des invités</h6></li>
-                                    <li><a class="dropdown-item" href="/gestionnaire/users">
-                                        <i class="bi bi-people me-2"></i>Invités de mes sujets
+                                    <li><hr class="dropdown-divider mx-2"></li>
+                                    <li><h6 class="dropdown-header text-uppercase fw-bold" style="color: var(--primary-color); font-size: 0.7rem; letter-spacing: 1px;">
+                                        <i class="bi bi-people me-1"></i>Gestion des invités
+                                    </h6></li>
+                                    <li><a class="dropdown-item py-2 px-3 rounded-3 m-1" href="/gestionnaire/users">
+                                        <i class="bi bi-people me-2" style="color: var(--secondary-color);"></i>Invités de mes sujets
                                     </a></li>
-                                    <li><a class="dropdown-item" href="/gestionnaire/users/manage">
-                                        <i class="bi bi-person-gear me-2"></i>Ajouter/Retirer des invités
+                                    <li><a class="dropdown-item py-2 px-3 rounded-3 m-1" href="/gestionnaire/users/manage">
+                                        <i class="bi bi-person-gear me-2" style="color: var(--info-color);"></i>Ajouter/Retirer des invités
                                     </a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><h6 class="dropdown-header">Contrôles avancés</h6></li>
-                                    <li><a class="dropdown-item" href="/gestionnaire/ideas/bulk">
-                                        <i class="bi bi-pencil-square me-2"></i>Modification en masse
-                                    </a></li>
-                                    <li><a class="dropdown-item" href="/gestionnaire/logs">
-                                        <i class="bi bi-clock-history me-2"></i>Historique et logs
-                                    </a></li>
-                                    <li><a class="dropdown-item" href="/gestionnaire/managers">
-                                        <i class="bi bi-shield-check me-2"></i>Gérer les gestionnaires
+                                    <li><hr class="dropdown-divider mx-2"></li>
+                                    <li><h6 class="dropdown-header text-uppercase fw-bold" style="color: var(--primary-color); font-size: 0.7rem; letter-spacing: 1px;">
+                                        <i class="bi bi-tools me-1"></i>Contrôles avancés
+                                    </h6></li>
+                                    <li><a class="dropdown-item py-2 px-3 rounded-3 m-1" href="/gestionnaire/ideas/bulk">
+                                        <i class="bi bi-pencil-square me-2" style="color: var(--warning-color);"></i>Modification en masse
                                     </a></li>
                                 </ul>
                             </li>
@@ -489,67 +676,168 @@
         </div>
     </nav>
 
-    <!-- Contenu principal -->
-    <div class="d-flex">
+    <!-- Menu secondaire horizontal -->
+    <!-- Debug: current_user = {{ current_user }}, show_sidebar = {{ show_sidebar }} -->
+    {% if current_user %}
+    <div class="bg-white shadow-sm border-bottom" style="position: fixed; top: 76px; left: 0; right: 0; z-index: 1020;">
+        <div class="container-fluid">
+            <nav class="nav nav-pills nav-fill py-2">
+                {% if "superadmin" in current_user.roles %}
+                    <a class="nav-link px-3 py-2 mx-1 rounded-pill" href="/superadmin/dashboard" 
+                       style="color: var(--primary-color); transition: all 0.3s ease;">
+                        <i class="bi bi-speedometer2 me-1"></i>Dashboard
+                    </a>
+                    <a class="nav-link px-3 py-2 mx-1 rounded-pill" href="/superadmin/users" 
+                       style="color: var(--primary-color); transition: all 0.3s ease;">
+                        <i class="bi bi-people me-1"></i>Invités
+                    </a>
+                    <a class="nav-link px-3 py-2 mx-1 rounded-pill" href="/superadmin/subjects" 
+                       style="color: var(--primary-color); transition: all 0.3s ease;">
+                        <i class="bi bi-collection me-1"></i>Sujets
+                    </a>
+                    <a class="nav-link px-3 py-2 mx-1 rounded-pill" href="/superadmin/organization" 
+                       style="color: var(--primary-color); transition: all 0.3s ease;">
+                        <i class="bi bi-gear me-1"></i>Paramètres
+                    </a>
+                {% elif "gestionnaire" in current_user.roles %}
+                    <a class="nav-link px-3 py-2 mx-1 rounded-pill" href="/gestionnaire/dashboard" 
+                       style="color: var(--primary-color); transition: all 0.3s ease;">
+                        <i class="bi bi-kanban me-1"></i>Dashboard
+                    </a>
+                    <a class="nav-link px-3 py-2 mx-1 rounded-pill" href="/gestionnaire/subjects" 
+                       style="color: var(--primary-color); transition: all 0.3s ease;">
+                        <i class="bi bi-collection me-1"></i>Mes Sujets
+                    </a>
+                    <a class="nav-link px-3 py-2 mx-1 rounded-pill" href="/gestionnaire/users" 
+                       style="color: var(--primary-color); transition: all 0.3s ease;">
+                        <i class="bi bi-people me-1"></i>Invités
+                    </a>
+                    <a class="nav-link px-3 py-2 mx-1 rounded-pill" href="/gestionnaire/subject/manage" 
+                       style="color: var(--primary-color); transition: all 0.3s ease;">
+                        <i class="bi bi-tools me-1"></i>Gestion
+                    </a>
+                {% else %}
+                    <a class="nav-link px-3 py-2 mx-1 rounded-pill" href="/user/dashboard" 
+                       style="color: var(--primary-color); transition: all 0.3s ease;">
+                        <i class="bi bi-person-workspace me-1"></i>Mes Sujets
+                    </a>
+                    <a class="nav-link px-3 py-2 mx-1 rounded-pill" href="/user/ideas" 
+                       style="color: var(--primary-color); transition: all 0.3s ease;">
+                        <i class="bi bi-lightbulb me-1"></i>Mes Idées
+                    </a>
+                    <a class="nav-link px-3 py-2 mx-1 rounded-pill" href="/user/vote" 
+                       style="color: var(--primary-color); transition: all 0.3s ease;">
+                        <i class="bi bi-hand-thumbs-up me-1"></i>Votes
+                    </a>
+                {% endif %}
+            </nav>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="page-container">
+        <!-- Menu vertical (Sidebar) -->
         {% if current_user and show_sidebar %}
-        <!-- Sidebar pour les invités connectés -->
-        <div class="sidebar text-white p-3" style="width: 250px;">
-            <div class="mb-4">
-                <h6 class="text-uppercase text-light opacity-75 mb-3">Navigation</h6>
-                <nav class="nav flex-column">
-                    {% if "superadmin" in current_user.roles %}
-                        <a class="nav-link" href="/superadmin/dashboard">
-                            <i class="bi bi-speedometer2 me-2"></i>Tableau de bord
-                        </a>
-                        <a class="nav-link" href="/superadmin/users">
-                            <i class="bi bi-people me-2"></i>Invités
-                        </a>
-                        <a class="nav-link" href="/superadmin/subjects">
-                            <i class="bi bi-collection me-2"></i>Sujets
-                        </a>
-                        <a class="nav-link" href="/superadmin/settings">
-                            <i class="bi bi-gear me-2"></i>Paramètres
-                        </a>
-                    {% elif "gestionnaire" in current_user.roles %}
-                        <a class="nav-link" href="/gestionnaire/dashboard">
-                            <i class="bi bi-kanban me-2"></i>Tableau de bord
-                        </a>
-                        <a class="nav-link" href="/gestionnaire/subjects">
-                            <i class="bi bi-collection me-2"></i>Mes Sujets
-                        </a>
-                        <a class="nav-link" href="/gestionnaire/users">
-                            <i class="bi bi-people me-2"></i>Invités
-                        </a>
-                        <a class="nav-link" href="/gestionnaire/dashboard">
-                            <i class="bi bi-folder-fill me-2"></i>Sujets managés
-                        </a>
-                    {% else %}
-                        <a class="nav-link" href="/user/dashboard">
-                            <i class="bi bi-person-workspace me-2"></i>Mes Sujets
-                        </a>
-                        <a class="nav-link" href="/user/ideas">
-                            <i class="bi bi-lightbulb me-2"></i>Mes Idées
-                        </a>
-                    {% endif %}
-                </nav>
+        <div class="sidebar-wrapper">
+            <div class="sidebar">
+                {% if "superadmin" in current_user.roles %}
+                    <div class="sidebar-heading">Super Admin</div>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/superadmin/dashboard">
+                                <i class="bi bi-speedometer2"></i> Tableau de bord
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/superadmin/users">
+                                <i class="bi bi-people"></i> Gestion des invités
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/superadmin/subjects">
+                                <i class="bi bi-collection"></i> Gestion des sujets
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/superadmin/organization">
+                                <i class="bi bi-building"></i> Configuration
+                            </a>
+                        </li>
+                    </ul>
+                {% endif %}
+                
+                {% if "gestionnaire" in current_user.roles %}
+                    <div class="sidebar-heading">Gestionnaire</div>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/gestionnaire/dashboard">
+                                <i class="bi bi-kanban"></i> Tableau de bord
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/gestionnaire/subjects">
+                                <i class="bi bi-collection"></i> Mes sujets
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/gestionnaire/users">
+                                <i class="bi bi-people"></i> Invités
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/gestionnaire/subject/manage">
+                                <i class="bi bi-tools"></i> Gestion rapide
+                            </a>
+                        </li>
+                    </ul>
+                {% endif %}
+                
+                {% if "user" in current_user.roles %}
+                    <div class="sidebar-heading">Invité</div>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/user/dashboard">
+                                <i class="bi bi-person-workspace"></i> Tableau de bord
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/user/ideas">
+                                <i class="bi bi-lightbulb"></i> Mes idées
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/user/subjects">
+                                <i class="bi bi-collection"></i> Mes sujets
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/user/vote">
+                                <i class="bi bi-hand-thumbs-up"></i> Voter
+                            </a>
+                        </li>
+                    </ul>
+                {% endif %}
             </div>
         </div>
         {% endif %}
 
-        <!-- Zone de contenu -->
-        <div class="flex-grow-1 main-content">
-            <div class="container-fluid p-4">
-                {% if messages %}
-                    {% for message in messages %}
-                        <div class="alert alert-{{ message.type }} alert-dismissible fade show" role="alert">
-                            <i class="bi bi-info-circle me-2"></i>
-                            {{ message.text }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    {% endfor %}
-                {% endif %}
+        <!-- Contenu principal -->
+        <div class="content-wrapper">
+            <div class="main-content">
+                <div class="container-fluid p-4">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.type }} alert-dismissible fade show" role="alert">
+                                <i class="bi bi-info-circle me-2"></i>
+                                {{ message.text }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
 
-                {% block content %}{% endblock %}
+                    {% block content %}{% endblock %}
+                </div>
+
             </div>
 
             <!-- Footer -->
@@ -558,7 +846,7 @@
                     <div class="row align-items-center">
                         <div class="col">
                             <div class="text-muted small">
-                                &copy; 2025 Boîte à Idées. Tous droits réservés.
+                                &copy; 2025 {{ organization.name if organization else 'Idea Box' }}. Tous droits réservés.
                             </div>
                         </div>
                         <div class="col-auto">
@@ -572,7 +860,49 @@
         </div>
     </div>
 
+    <!-- Bouton pour afficher/masquer la sidebar en mobile -->
+    {% if current_user and show_sidebar %}
+    <div class="sidebar-toggle" id="sidebarToggle">
+        <i class="bi bi-list"></i>
+    </div>
+    {% endif %}
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Script pour gérer la sidebar -->
+    {% if current_user and show_sidebar %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const body = document.body;
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            
+            // Gestion du bouton toggle de la sidebar
+            if (sidebarToggle) {
+                sidebarToggle.addEventListener('click', function() {
+                    body.classList.toggle('sidebar-open');
+                });
+            }
+            
+            // Fermer la sidebar au clic en dehors en mode mobile
+            document.addEventListener('click', function(event) {
+                if (window.innerWidth < 992 && 
+                    body.classList.contains('sidebar-open') && 
+                    !event.target.closest('.sidebar-wrapper') && 
+                    !event.target.closest('#sidebarToggle')) {
+                    body.classList.remove('sidebar-open');
+                }
+            });
+            
+            // Gestion du redimensionnement de la fenêtre
+            window.addEventListener('resize', function() {
+                if (window.innerWidth >= 992) {
+                    body.classList.remove('sidebar-open');
+                }
+            });
+        });
+    </script>
+    {% endif %}
+    
     {% block scripts %}{% endblock %}
 </body>
 </html>

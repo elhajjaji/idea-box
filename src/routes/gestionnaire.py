@@ -50,14 +50,21 @@ async def gestionnaire_dashboard(request: Request, current_user: User = Depends(
     if active_subject_id:
         active_subject = await get_subject(active_subject_id)
 
-    return templates.TemplateResponse("gestionnaire/dashboard.html", {
+    # Préparer le contexte avec les informations de l'organisation
+    from src.utils.template_helpers import add_organization_context
+    context = {
         "request": request, 
         "subjects": subjects, 
         "active_subject": active_subject, 
         "current_user": current_user, 
         "metrics": metrics,
         "show_sidebar": True
-    })
+    }
+    
+    # Ajouter les informations de l'organisation
+    context = await add_organization_context(context)
+
+    return templates.TemplateResponse("gestionnaire/dashboard.html", context)
 
 @router.get("/gestionnaire/subjects", response_class=HTMLResponse)
 async def gestionnaire_subjects(request: Request, current_user: User = Depends(get_current_gestionnaire)):
@@ -73,12 +80,19 @@ async def gestionnaire_subjects(request: Request, current_user: User = Depends(g
             "ideas_count": len(ideas)
         })
     
-    return templates.TemplateResponse("gestionnaire/subjects.html", {
+    # Préparer le contexte avec les informations de l'organisation
+    from src.utils.template_helpers import add_organization_context
+    context = {
         "request": request, 
         "subjects": subjects_with_ideas, 
         "current_user": current_user, 
         "show_sidebar": True
-    })
+    }
+    
+    # Ajouter les informations de l'organisation
+    context = await add_organization_context(context)
+    
+    return templates.TemplateResponse("gestionnaire/subjects.html", context)
 
 @router.get("/gestionnaire/users", response_class=HTMLResponse)
 async def gestionnaire_users(request: Request, current_user: User = Depends(get_current_gestionnaire)):
@@ -94,13 +108,20 @@ async def gestionnaire_users(request: Request, current_user: User = Depends(get_
             if str(user.id) in subject.users_ids and user not in managed_users:
                 managed_users.append(user)
     
-    return templates.TemplateResponse("gestionnaire/users.html", {
+    # Préparer le contexte avec les informations de l'organisation
+    from src.utils.template_helpers import add_organization_context
+    context = {
         "request": request, 
         "users": managed_users,
         "subjects": subjects,
         "current_user": current_user, 
         "show_sidebar": True
-    })
+    }
+    
+    # Ajouter les informations de l'organisation
+    context = await add_organization_context(context)
+    
+    return templates.TemplateResponse("gestionnaire/users.html", context)
 
 @router.post("/gestionnaire/set_active_subject/{subject_id}")
 async def set_active_subject(subject_id: str, request: Request, current_user: User = Depends(get_current_gestionnaire)):

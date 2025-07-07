@@ -8,6 +8,8 @@ from src.services.auth_service import (create_access_token, get_password_hash, v
 from src.services.database import Database
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
+from ..services.organization_service import OrganizationService
+from ..utils.template_helpers import add_organization_context
 
 router = APIRouter()
 
@@ -18,22 +20,26 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
 
 @router.get("/register", response_class=HTMLResponse)
 async def register_form(request: Request, current_user: User = Depends(get_current_user_optional)):
-    return templates.TemplateResponse("register.html", {"request": request, "current_user": current_user, "show_sidebar": False})
+    context = await add_organization_context({"request": request, "show_sidebar": False})
+    return templates.TemplateResponse("register.html", context)
 
 @router.post("/register", response_class=HTMLResponse)
 async def register_user(request: Request, email: str = Form(...), nom: str = Form(...), prenom: str = Form(...), password: str = Form(...)):
     existing_user = await get_user_by_email(email)
     if existing_user:
-        return templates.TemplateResponse("register.html", {"request": request, "error": "Cet email est déjà enregistré."})
+        context = await add_organization_context({"request": request, "error": "Cet email est déjà enregistré.", "show_sidebar": False})
+        return templates.TemplateResponse("register.html", context)
 
     hashed_password = get_password_hash(password)
     user = User(email=email, nom=nom, prenom=prenom, pwd=hashed_password)
     await Database.engine.save(user)
-    return templates.TemplateResponse("register.html", {"request": request, "message": "Inscription réussie ! Vous pouvez maintenant vous connecter."})
+    context = await add_organization_context({"request": request, "message": "Inscription réussie ! Vous pouvez maintenant vous connecter.", "show_sidebar": False})
+    return templates.TemplateResponse("register.html", context)
 
 @router.get("/login", response_class=HTMLResponse)
-async def login_form(request: Request, current_user: User = Depends(get_current_user_optional)):
-    return templates.TemplateResponse("login.html", {"request": request, "current_user": current_user, "show_sidebar": False})
+async def login_form(request: Request):
+    context = await add_organization_context({"request": request, "show_sidebar": False})
+    return templates.TemplateResponse("login.html", context)
 
 @router.post("/token")
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
@@ -51,7 +57,8 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 async def login_user(request: Request, username: str = Form(...), password: str = Form(...)):
     user = await get_user_by_email(username)
     if not user or not verify_password(password, user.pwd):
-        return templates.TemplateResponse("login.html", {"request": request, "error": "Identifiants incorrects"})
+        context = await add_organization_context({"request": request, "error": "Identifiants incorrects", "show_sidebar": False})
+        return templates.TemplateResponse("login.html", context)
     
     # Créer un token d'accès
     access_token = create_access_token(data={"sub": user.email, "roles": user.roles})
@@ -78,8 +85,13 @@ async def logout_user():
 @router.get("/profile", response_class=HTMLResponse)
 async def profile_page(request: Request, current_user: User = Depends(get_current_user)):
     """Page de profil utilisateur"""
-    return templates.TemplateResponse("profile.html", {
+    # Préparer le contexte avec les informations de l'organisation
+    context = {
         "request": request, 
-        "current_user": current_user,
-        "show_sidebar": True
-    })
+        "current_user": current_user
+    }
+    
+    # Ajouter les informations de l'organisation
+    context = await add_organization_context(context)
+    
+    return templates.TemplateResponse("profile.html", context)

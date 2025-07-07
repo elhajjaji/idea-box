@@ -9,7 +9,7 @@ class Database:
     @staticmethod
     async def connect(mongo_uri: str = None, db_name: str = None):
         if mongo_uri is None:
-            mongo_uri = os.getenv("MONGO_URI")
+            mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
         if db_name is None:
             db_name = os.getenv("MONGO_DB_NAME", "boiteaidees")
 

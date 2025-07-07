@@ -86,7 +86,9 @@ async def user_dashboard(request: Request, current_user: User = Depends(get_curr
         # Récupérer les sujets avec vote actif
         vote_subjects = await get_vote_subjects_for_user(str(current_user.id))
         
-        return templates.TemplateResponse("user/dashboard.html", {
+        # Préparer le contexte avec les informations de l'organisation
+        from src.utils.template_helpers import add_organization_context
+        context = {
             "request": request,
             "current_user": current_user,
             "user_subjects": user_subjects,
@@ -94,11 +96,18 @@ async def user_dashboard(request: Request, current_user: User = Depends(get_curr
             "vote_subjects": vote_subjects,
             "metrics": metrics,
             "show_sidebar": True
-        })
+        }
+        
+        # Ajouter les informations de l'organisation
+        context = await add_organization_context(context)
+        
+        return templates.TemplateResponse("user/dashboard.html", context)
     
     except Exception as e:
         print(f"❌ Erreur dashboard utilisateur: {e}")
-        return templates.TemplateResponse("user/dashboard.html", {
+        # Préparer le contexte avec les informations de l'organisation
+        from src.utils.template_helpers import add_organization_context
+        context = {
             "request": request,
             "current_user": current_user,
             "user_subjects": [],
@@ -108,8 +117,14 @@ async def user_dashboard(request: Request, current_user: User = Depends(get_curr
                 'user_votes_count': 0,
                 'pending_count': 0
             },
-            "vote_subjects": []
-        })
+            "vote_subjects": [],
+            "show_sidebar": True
+        }
+        
+        # Ajouter les informations de l'organisation
+        context = await add_organization_context(context)
+        
+        return templates.TemplateResponse("user/dashboard.html", context)
 
 @router.get("/user/vote", response_class=HTMLResponse)
 async def user_vote_center(request: Request, current_user: User = Depends(get_current_normal_user)):
