@@ -245,17 +245,11 @@ Incluez :
 
 Ce projet est sous licence **MIT** - voir le fichier [LICENSE](LICENSE) pour plus de détails.
 
-## 👥 Équipe
-
-- **Développement** : [Votre nom/équipe]
-- **Architecture** : [Architecte]
-- **UI/UX** : [Designer]
-
 ## 📞 Support
 
 - **Documentation** : [SCHEMA_BASE_DONNEES.md](./SCHEMA_BASE_DONNEES.md)
 - **Issues** : [GitHub Issues](../../issues)
-- **Email** : support@votre-domaine.com
+- **Email** : prof.elhajjaji@gmail.com
 
 ---
 
