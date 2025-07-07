@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block title %}Gestion des invités - Gestionnaire{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-0 text-gray-800">
+                        <i class="bi bi-person-gear text-primary me-2"></i>
+                        Gestion globale des invités
+                    </h1>
+                    <p class="text-muted mt-1">Ajoutez et retirez des invités de vos sujets</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="/gestionnaire/dashboard" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-1"></i>Retour au tableau de bord
+                    </a>
+                    <a href="/gestionnaire/users" class="btn btn-outline-primary">
+                        <i class="bi bi-people me-1"></i>Voir tous les invités
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <div class="text-white-50 small">Sujets gérés</div>
+                            <div class="h5 mb-0">{{ subjects_count }}</div>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-collection fs-2"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <div class="text-white-50 small">Invités assignés</div>
+                            <div class="h5 mb-0">{{ subjects_with_users | map(attribute='users') | map('length') | sum }}</div>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-people fs-2"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <div class="text-white-50 small">Invités disponibles</div>
+                            <div class="h5 mb-0">{{ subjects_with_users | map(attribute='available_users') | map('length') | sum }}</div>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="bi bi-person-plus fs-2"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if subjects_count > 0 %}
+        {% for subject_data in subjects_with_users %}
+            <div class="card mb-4 hover-lift">
+                <div class="card-header bg-gradient-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-collection me-2"></i>
+                        {{ subject_data.subject.name }}
+                        <span class="badge bg-light text-dark ms-2">
+                            {{ subject_data.users | length }} invité{{ 's' if subject_data.users | length > 1 else '' }}
+                        </span>
+                    </h5>
+                    <p class="mb-0 text-white-50">{{ subject_data.subject.description }}</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Invités actuels -->
+                        <div class="col-md-6">
+                            <h6 class="text-success">
+                                <i class="bi bi-people me-1"></i>
+                                Invités assignés ({{ subject_data.users | length }})
+                            </h6>
+                            {% if subject_data.users %}
+                                <div class="list-group">
+                                    {% for user in subject_data.users %}
+                                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                                            <div class="d-flex align-items-center">
+                                                <div class="avatar-sm bg-success text-white rounded-circle me-2">
+                                                    <i class="bi bi-person"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="fw-bold">{{ user.username }}</div>
+                                                    <small class="text-muted">{{ user.email }}</small>
+                                                </div>
+                                            </div>
+                                            <form method="post" action="/gestionnaire/subject/{{ subject_data.subject.id }}/users/remove" class="d-inline">
+                                                <input type="hidden" name="user_id" value="{{ user.id }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                                        onclick="return confirm('Êtes-vous sûr de vouloir retirer cet invité ?')">
+                                                    <i class="bi bi-person-dash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    Aucun invité assigné à ce sujet.
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Ajouter des invités -->
+                        <div class="col-md-6">
+                            <h6 class="text-primary">
+                                <i class="bi bi-person-plus me-1"></i>
+                                Ajouter des invités
+                            </h6>
+                            {% if subject_data.available_users %}
+                                <form method="post" action="/gestionnaire/subject/{{ subject_data.subject.id }}/users/add">
+                                    <div class="mb-3">
+                                        <select class="form-select" name="user_id" required>
+                                            <option value="">Sélectionnez un invité...</option>
+                                            {% for user in subject_data.available_users %}
+                                                <option value="{{ user.id }}">
+                                                    {{ user.username }} - {{ user.email }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-person-plus me-1"></i>
+                                        Ajouter
+                                    </button>
+                                </form>
+                            {% else %}
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-exclamation-triangle me-2"></i>
+                                    Aucun invité disponible à ajouter.
+                                </div>
+                            {% endif %}
+
+                            <!-- Actions rapides -->
+                            <div class="mt-3">
+                                <h6 class="text-secondary">
+                                    <i class="bi bi-lightning me-1"></i>
+                                    Actions rapides
+                                </h6>
+                                <div class="d-grid gap-2">
+                                    <a href="/gestionnaire/subject/{{ subject_data.subject.id }}/users" class="btn btn-sm btn-outline-info">
+                                        <i class="bi bi-gear me-1"></i>
+                                        Gestion détaillée
+                                    </a>
+                                    <a href="/gestionnaire/subject/{{ subject_data.subject.id }}/manage" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-collection me-1"></i>
+                                        Gérer le sujet
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="bi bi-person-exclamation text-muted" style="font-size: 4rem;"></i>
+                        <h4 class="mt-3">Aucun sujet à gérer</h4>
+                        <p class="text-muted">Vous n'avez pas encore de sujets assignés pour lesquels vous pouvez gérer les invités.</p>
+                        <a href="/gestionnaire/dashboard" class="btn btn-primary">
+                            <i class="bi bi-arrow-left me-1"></i>Retour au tableau de bord
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+// Confirmation avant suppression
+document.querySelectorAll('form[action*="/users/remove"]').forEach(form => {
+    form.addEventListener('submit', function(e) {
+        if (!confirm('Êtes-vous sûr de vouloir retirer cet invité du sujet ?')) {
+            e.preventDefault();
+        }
+    });
+});
+
+// Validation du formulaire d'ajout
+document.querySelectorAll('form[action*="/users/add"]').forEach(form => {
+    form.addEventListener('submit', function(e) {
+        const select = this.querySelector('select[name="user_id"]');
+        if (!select.value) {
+            e.preventDefault();
+            alert('Veuillez sélectionner un invité à ajouter.');
+            select.focus();
+        }
+    });
+});
+</script>
+{% endblock %}

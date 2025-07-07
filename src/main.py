@@ -1,12 +1,13 @@
 import os
 from fastapi import FastAPI, Request, Depends
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 from src.services.database import Database
 from src.services.init_service import init_superadmin
 from src.services.auth_service import get_current_user_optional
 from src.routes import auth, superadmin, gestionnaire, user
+from src.routes import gestionnaire_advanced
 from dotenv import load_dotenv
 from starlette.middleware.sessions import SessionMiddleware
 from src.services.stats_service import get_user_dashboard_stats
@@ -39,32 +40,22 @@ async def shutdown_db_client():
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(superadmin.router)
 app.include_router(gestionnaire.router)
+app.include_router(gestionnaire_advanced.router)  # Nouvelles routes gestionnaire
 app.include_router(user.router)
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request, current_user=Depends(get_current_user_optional)):
-    metrics = None
-    latest_subjects = []
-    if current_user:
-        # Récupérer les sujets accessibles (user ou gestionnaire)
-        user_subjects, user_stats = await get_user_dashboard_stats(current_user)
-        # Trier par date de création si dispo, sinon par nom
-        latest_subjects = sorted(user_subjects, key=lambda s: getattr(s, 'created_at', None) or s.name, reverse=True)[:3]
-        # Calculer les métriques globales
-        total_ideas = sum(getattr(s, 'ideas_count', 0) for s in user_subjects)
-        total_votes = sum(getattr(s, 'votes_count', 0) for s in user_subjects)
-        metrics = {
-            'subjects_count': len(user_subjects),
-            'ideas_count': total_ideas,
-            'votes_count': total_votes,
-            'latest_subjects': latest_subjects
-        }
-    return templates.TemplateResponse("index.html", {
-        "request": request, 
-        "current_user": current_user,
-        "metrics": metrics,
-        "show_sidebar": False  # Pas de sidebar sur la page d'accueil
-    })
+    # Si l'utilisateur n'est pas connecté, rediriger vers la page de connexion
+    if not current_user:
+        return RedirectResponse(url="/auth/login", status_code=303)
+    
+    # Rediriger vers le tableau de bord approprié selon le rôle
+    if "superadmin" in current_user.roles:
+        return RedirectResponse(url="/superadmin/dashboard", status_code=303)
+    elif "gestionnaire" in current_user.roles:
+        return RedirectResponse(url="/gestionnaire/dashboard", status_code=303)
+    else:
+        return RedirectResponse(url="/user/dashboard", status_code=303)
 
 if __name__ == "__main__":
     load_dotenv()

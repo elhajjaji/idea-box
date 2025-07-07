@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}Toutes les idées par sujet - Boîte à Idées{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-0 text-gray-800">
+                        <i class="bi bi-collection text-primary me-2"></i>
+                        Toutes les idées par sujet
+                    </h1>
+                    <p class="text-muted mt-1">Explorez toutes les idées soumises dans vos sujets</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="/user/subjects" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-1"></i>Retour aux sujets
+                    </a>
+                    <a href="/user/ideas/submit" class="btn btn-primary">
+                        <i class="bi bi-plus-circle me-1"></i>Soumettre une idée
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if subjects_count > 0 %}
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <div class="text-white-50 small">Sujets avec idées</div>
+                                <div class="h5 mb-0">{{ subjects_count }}</div>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="bi bi-collection fs-2"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <div class="text-white-50 small">Total des idées</div>
+                                <div class="h5 mb-0">{{ subjects_with_ideas | map(attribute='ideas_count') | sum }}</div>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="bi bi-lightbulb fs-2"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <div class="text-white-50 small">Mes idées</div>
+                                <div class="h5 mb-0">{{ subjects_with_ideas | map(attribute='my_ideas_count') | sum }}</div>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="bi bi-person-check fs-2"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <div class="text-white-50 small">Mes votes</div>
+                                <div class="h5 mb-0">{{ subjects_with_ideas | map(attribute='my_votes_count') | sum }}</div>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="bi bi-hand-thumbs-up fs-2"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% for subject_data in subjects_with_ideas %}
+            <div class="card mb-4 hover-lift">
+                <div class="card-header bg-gradient-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-collection me-2"></i>
+                        {{ subject_data.subject.name }}
+                        <span class="badge bg-light text-dark ms-2">
+                            {{ subject_data.ideas_count }} idée{{ 's' if subject_data.ideas_count > 1 else '' }}
+                        </span>
+                    </h5>
+                    <p class="mb-0 text-white-50">{{ subject_data.subject.description }}</p>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center text-muted">
+                                <i class="bi bi-calendar me-2"></i>
+                                <span>Émission: 
+                                    <span class="badge bg-{{ 'success' if subject_data.subject.emission_active else 'secondary' }}">
+                                        {{ 'Active' if subject_data.subject.emission_active else 'Inactive' }}
+                                    </span>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center text-muted">
+                                <i class="bi bi-hand-thumbs-up me-2"></i>
+                                <span>Vote: 
+                                    <span class="badge bg-{{ 'success' if subject_data.subject.vote_active else 'secondary' }}">
+                                        {{ 'Actif' if subject_data.subject.vote_active else 'Inactif' }}
+                                    </span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        {% for idea_data in subject_data.ideas %}
+                            <div class="col-md-6 mb-3">
+                                <div class="card border-start border-4 border-{{ 'primary' if idea_data.is_my_idea else 'light' }}">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h6 class="card-title mb-0">
+                                                {% if idea_data.is_my_idea %}
+                                                    <i class="bi bi-person-check text-primary me-1"></i>
+                                                {% endif %}
+                                                {{ idea_data.idea.title }}
+                                            </h6>
+                                            <div class="d-flex gap-1">
+                                                {% if idea_data.has_voted %}
+                                                    <span class="badge bg-success">
+                                                        <i class="bi bi-check2"></i>
+                                                    </span>
+                                                {% endif %}
+                                                <span class="badge bg-light text-dark">
+                                                    {{ idea_data.votes_count }} vote{{ 's' if idea_data.votes_count > 1 else '' }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <p class="card-text text-muted small">{{ idea_data.idea.description[:100] }}{% if idea_data.idea.description|length > 100 %}...{% endif %}</p>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-muted">
+                                                <i class="bi bi-person me-1"></i>
+                                                {{ idea_data.author_name }}
+                                            </small>
+                                            <div class="btn-group btn-group-sm">
+                                                {% if subject_data.subject.vote_active and not idea_data.has_voted and not idea_data.is_my_idea %}
+                                                    <form method="post" action="/user/vote/{{ idea_data.idea.id }}" class="d-inline">
+                                                        <button type="submit" class="btn btn-outline-success btn-sm">
+                                                            <i class="bi bi-hand-thumbs-up me-1"></i>Voter
+                                                        </button>
+                                                    </form>
+                                                {% elif idea_data.has_voted %}
+                                                    <form method="post" action="/user/unvote/{{ idea_data.idea.id }}" class="d-inline">
+                                                        <button type="submit" class="btn btn-success btn-sm">
+                                                            <i class="bi bi-check2 me-1"></i>Voté
+                                                        </button>
+                                                    </form>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="bi bi-collection text-muted" style="font-size: 4rem;"></i>
+                        <h4 class="mt-3">Aucune idée disponible</h4>
+                        <p class="text-muted">Vous n'avez accès à aucun sujet avec des idées pour le moment.</p>
+                        <a href="/user/subjects" class="btn btn-primary">
+                            <i class="bi bi-arrow-left me-1"></i>Retour aux sujets
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

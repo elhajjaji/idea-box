@@ -4,165 +4,230 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 mb-0 text-gray-800">
-        <i class="bi bi-kanban me-2"></i>Tableau de bord Gestionnaire
-    </h1>
-    <div class="text-muted">
-        Bonjour {{ current_user.prenom }} {{ current_user.nom }}
+    <div>
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="bi bi-kanban me-2"></i>Tableau de bord Gestionnaire
+        </h1>
+        <p class="text-muted mb-0">Bonjour {{ current_user.prenom }} {{ current_user.nom }}, voici vos métriques</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="/gestionnaire/subjects" class="btn btn-primary">
+            <i class="bi bi-collection me-2"></i>Gérer mes sujets
+        </a>
+        <a href="/gestionnaire/users" class="btn btn-outline-secondary">
+            <i class="bi bi-people me-2"></i>Invités
+        </a>
     </div>
 </div>
 
-<div class="row">
-    <div class="col-md-6 mb-4">
+<!-- Métriques principales -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="metrics-card">
+            <div class="metric-icon">
+                <i class="bi bi-collection"></i>
+            </div>
+            <h3 class="metric-value" data-count="{{ metrics.subjects_count }}">0</h3>
+            <p class="metric-label">Sujets gérés</p>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="metrics-card success">
+            <div class="metric-icon">
+                <i class="bi bi-lightbulb"></i>
+            </div>
+            <h3 class="metric-value" data-count="{{ metrics.total_ideas }}">0</h3>
+            <p class="metric-label">Idées totales</p>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="metrics-card warning">
+            <div class="metric-icon">
+                <i class="bi bi-hand-thumbs-up"></i>
+            </div>
+            <h3 class="metric-value" data-count="{{ metrics.total_votes }}">0</h3>
+            <p class="metric-label">Votes totaux</p>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="metrics-card info">
+            <div class="metric-icon">
+                <i class="bi bi-people"></i>
+            </div>
+            <h3 class="metric-value" data-count="{{ metrics.total_users }}">0</h3>
+            <p class="metric-label">Invités</p>
+        </div>
+    </div>
+</div>
+
+<!-- Graphiques des métriques -->
+<div class="row mb-4">
+    <div class="col-lg-8">
         <div class="card shadow">
             <div class="card-header py-3">
                 <h6 class="m-0 font-weight-bold text-primary">
-                    <i class="bi bi-collection me-2"></i>Mes Sujets
+                    <i class="bi bi-bar-chart me-2"></i>Vue d'ensemble par sujet
                 </h6>
             </div>
             <div class="card-body">
-                {% if subjects %}
-                    <div class="list-group list-group-flush">
-                        {% for subject in subjects %}
-                            <div class="list-group-item d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="mb-1">
-                                        {{ subject.name }}
-                                        <span class="text-muted small">
-                                            ({{ subject.ideas_count }} idée(s), {{ subject.votes_count }} votant(s))
-                                        </span>
-                                    </h6>
-                                    {% if subject.description %}
-                                        <small class="text-muted">{{ subject.description[:80] }}{% if subject.description|length > 80 %}...{% endif %}</small>
-                                    {% endif %}
-                                </div>
-                                <div class="btn-group" role="group">
-                                    <form action="/gestionnaire/set_active_subject/{{ subject.id }}" method="post" style="display: inline;">
-                                        <button type="submit" class="btn btn-sm {% if active_subject and active_subject.id == subject.id %}btn-success{% else %}btn-outline-primary{% endif %}">
-                                            {% if active_subject and active_subject.id == subject.id %}
-                                                <i class="bi bi-check-circle me-1"></i>Sélectionné
-                                            {% else %}
-                                                <i class="bi bi-cursor me-1"></i>Sélectionner
-                                            {% endif %}
-                                        </button>
-                                    </form>
-                                    <a href="/gestionnaire/subject/{{ subject.id }}/manage" class="btn btn-sm btn-outline-secondary">
-                                        <i class="bi bi-pencil me-1"></i>Modifier
-                                    </a>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="text-center py-4">
-                        <i class="bi bi-inbox text-muted" style="font-size: 2rem;"></i>
-                        <p class="text-muted mt-2">Aucun sujet assigné comme gestionnaire</p>
-                    </div>
-                {% endif %}
+                <div class="chart-container">
+                    <canvas id="subjectsOverviewChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
-    
-    <div class="col-md-6 mb-4">
+    <div class="col-lg-4">
         <div class="card shadow">
             <div class="card-header py-3">
                 <h6 class="m-0 font-weight-bold text-primary">
-                    <i class="bi bi-gear me-2"></i>Sujet Actif: 
-                    {% if active_subject %}{{ active_subject.name }}{% else %}Aucun{% endif %}
+                    <i class="bi bi-pie-chart me-2"></i>Répartition des activités
                 </h6>
             </div>
             <div class="card-body">
-                {% if active_subject %}
-                    <div class="mb-3">
-                        {% if active_subject.description %}
-                            <p class="text-muted"><strong>Description:</strong> {{ active_subject.description }}</p>
-                        {% endif %}
-                        
-                        <div class="row text-center mb-3">
-                            <div class="col-6">
-                                <div class="border-end">
-                                    <div class="h5 mb-0 {% if active_subject.emission_active %}text-success{% else %}text-muted{% endif %}">
-                                        <i class="bi bi-lightbulb{% if active_subject.emission_active %}-fill{% endif %}"></i>
-                                    </div>
-                                    <small class="text-muted">Émission d'idées</small>
-                                    <br>
-                                    <span class="badge {% if active_subject.emission_active %}bg-success{% else %}bg-secondary{% endif %}">
-                                        {% if active_subject.emission_active %}Active{% else %}Inactive{% endif %}
-                                    </span>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="h5 mb-0 {% if active_subject.vote_active %}text-primary{% else %}text-muted{% endif %}">
-                                    <i class="bi bi-hand-thumbs-up{% if active_subject.vote_active %}-fill{% endif %}"></i>
-                                </div>
-                                <small class="text-muted">Session de vote</small>
-                                <br>
-                                <span class="badge {% if active_subject.vote_active %}bg-primary{% else %}bg-secondary{% endif %}">
-                                    {% if active_subject.vote_active %}Active{% else %}Inactive{% endif %}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <hr>
-                    
-                    <h6 class="mb-3">
-                        <i class="bi bi-lightning me-2"></i>Actions disponibles:
-                    </h6>
-                    
-                    <div class="d-grid gap-2">
-                        <a href="/gestionnaire/subject/{{ active_subject.id }}/manage_users" class="btn btn-info">
-                            <i class="bi bi-people me-2"></i>Gérer les utilisateurs du sujet
-                        </a>
-                        
-                        <div class="row">
-                            <div class="col-6">
-                                <form action="/gestionnaire/subject/{{ active_subject.id }}/activate_emission" method="post">
-                                    <button type="submit" class="btn btn-success w-100" {% if active_subject.emission_active %}disabled{% endif %}>
-                                        <i class="bi bi-play-circle me-1"></i>Activer émission
-                                    </button>
-                                </form>
-                            </div>
-                            <div class="col-6">
-                                <form action="/gestionnaire/subject/{{ active_subject.id }}/deactivate_emission" method="post">
-                                    <button type="submit" class="btn btn-warning w-100" {% if not active_subject.emission_active %}disabled{% endif %}>
-                                        <i class="bi bi-stop-circle me-1"></i>Désactiver émission
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-6">
-                                <form action="/gestionnaire/subject/{{ active_subject.id }}/activate_vote" method="post">
-                                    <button type="submit" class="btn btn-primary w-100" {% if active_subject.vote_active %}disabled{% endif %}>
-                                        <i class="bi bi-play-circle me-1"></i>Activer vote
-                                    </button>
-                                </form>
-                            </div>
-                            <div class="col-6">
-                                <form action="/gestionnaire/subject/{{ active_subject.id }}/close_vote" method="post">
-                                    <button type="submit" class="btn btn-secondary w-100" {% if not active_subject.vote_active %}disabled{% endif %}>
-                                        <i class="bi bi-stop-circle me-1"></i>Clôturer vote
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                        
-                        <form action="/gestionnaire/subject/{{ active_subject.id }}/abandon_vote" method="post">
-                            <button type="submit" class="btn btn-danger w-100" {% if not active_subject.vote_active %}disabled{% endif %}>
-                                <i class="bi bi-x-circle me-2"></i>Abandonner vote
-                            </button>
-                        </form>
-                    </div>
-                {% else %}
-                    <div class="text-center py-4">
-                        <i class="bi bi-arrow-left-circle text-muted" style="font-size: 2rem;"></i>
-                        <p class="text-muted mt-2">Veuillez sélectionner un sujet à gauche pour gérer ses paramètres.</p>
-                    </div>
-                {% endif %}
+                <div class="chart-container small">
+                    <canvas id="activityDistributionChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Gestion rapide des sujets -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-primary">
+            <i class="bi bi-speedometer2 me-2"></i>Gestion rapide des sujets
+        </h6>
+        <a href="/gestionnaire/subjects" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-plus-circle me-1"></i>Voir tous
+        </a>
+    </div>
+    <div class="card-body">
+        {% if metrics.subjects_data %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Sujet</th>
+                            <th>Statut</th>
+                            <th>Invités</th>
+                            <th>Idées</th>
+                            <th>Votes</th>
+                            <th>Actions rapides</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for subject in metrics.subjects_data %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2">
+                                        <i class="bi bi-collection"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0">{{ subject.name }}</h6>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <span class="status-badge {% if subject.status == 'active' %}status-active{% else %}status-inactive{% endif %}">
+                                        {% if subject.status == 'active' %}Émission{% else %}Fermé{% endif %}
+                                    </span>
+                                    {% if subject.voting_status == 'active' %}
+                                    <span class="status-badge status-voting">Vote</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-info">{{ subject.users_count }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-success">{{ subject.ideas_count }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-warning">{{ subject.votes_count }}</span>
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="/gestionnaire/subject/{{ subject.id }}/manage" class="btn btn-sm btn-outline-primary" title="Gérer">
+                                        <i class="bi bi-gear"></i>
+                                    </a>
+                                    <a href="/gestionnaire/subject/{{ subject.id }}/users" class="btn btn-sm btn-outline-secondary" title="Invités">
+                                        <i class="bi bi-people"></i>
+                                    </a>
+                                    <a href="/gestionnaire/subject/{{ subject.id }}/history" class="btn btn-sm btn-outline-info" title="Historique">
+                                        <i class="bi bi-clock-history"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-4">
+                <i class="bi bi-collection text-muted" style="font-size: 3rem;"></i>
+                <h5 class="mt-3 text-muted">Aucun sujet géré</h5>
+                <p class="text-muted">Vous n'avez pas encore de sujets assignés.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{% include "charts_base.html" %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Données des métriques depuis le backend
+    const subjectsData = {{ metrics.charts.subjects_overview | tojson }};
+    const summaryStats = {{ metrics.charts.summary_stats | tojson }};
+    
+    // Graphique vue d'ensemble par sujet
+    if (subjectsData.length > 0) {
+        const subjectsChartData = prepareMultiDatasetChart(subjectsData, 'name', [
+            {
+                label: 'Idées',
+                key: 'ideas',
+                backgroundColor: 'rgba(78, 115, 223, 0.8)',
+                borderColor: 'rgb(78, 115, 223)'
+            },
+            {
+                label: 'Votes',
+                key: 'votes',
+                backgroundColor: 'rgba(28, 200, 138, 0.8)',
+                borderColor: 'rgb(28, 200, 138)'
+            },
+            {
+                label: 'Invités',
+                key: 'users',
+                backgroundColor: 'rgba(54, 185, 204, 0.8)',
+                borderColor: 'rgb(54, 185, 204)'
+            }
+        ]);
+        
+        createBarChart('subjectsOverviewChart', subjectsChartData, {
+            title: 'Métriques par sujet'
+        });
+    }
+    
+    // Graphique répartition des activités
+    const activityData = [
+        { label: 'Sujets actifs', value: {{ metrics.active_subjects }} },
+        { label: 'Sessions de vote', value: {{ metrics.voting_subjects }} },
+        { label: 'Sujets fermés', value: {{ metrics.subjects_count - metrics.active_subjects }} }
+    ];
+    
+    const activityChartData = prepareChartData(activityData, 'label', 'value', [
+        chartColors.success,
+        chartColors.warning,
+        chartColors.secondary
+    ]);
+    
+    createDonutChart('activityDistributionChart', activityChartData);
+});
+</script>
 {% endblock %}

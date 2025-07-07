@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Mes sujets - Boîte à Idées{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="bi bi-collection me-2"></i>Mes sujets
+        </h1>
+        <p class="text-muted mb-0">Tous les sujets auxquels vous êtes assigné(e)</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="/user/dashboard" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Retour au tableau de bord
+        </a>
+        <a href="/user/vote" class="btn btn-primary">
+            <i class="bi bi-hand-thumbs-up me-2"></i>Centre de vote
+        </a>
+    </div>
+</div>
+
+<!-- Résumé -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            <strong>{{ subjects_count }}</strong> sujet(s) assigné(s) •
+            Vous pouvez consulter les détails de chaque sujet et accéder directement aux actions disponibles.
+        </div>
+    </div>
+</div>
+
+<!-- Liste des sujets -->
+<div class="row">
+    {% if user_subjects %}
+        {% for subject_data in user_subjects %}
+        <div class="col-lg-6 col-xl-4 mb-4">
+            <div class="card h-100 shadow-sm border-left-primary">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">
+                            <i class="bi bi-collection me-2"></i>{{ subject_data.subject.name }}
+                        </h6>
+                        <div class="d-flex gap-1">
+                            {% if subject_data.subject.emission_active %}
+                                <span class="badge bg-success">Émission</span>
+                            {% endif %}
+                            {% if subject_data.subject.vote_active %}
+                                <span class="badge bg-warning">Vote</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if subject_data.subject.description %}
+                        <p class="text-muted small mb-3">{{ subject_data.subject.description[:100] }}{% if subject_data.subject.description|length > 100 %}...{% endif %}</p>
+                    {% endif %}
+                    
+                    <!-- Métriques -->
+                    <div class="row text-center mb-3">
+                        <div class="col-4">
+                            <div class="border-end">
+                                <div class="h6 mb-0 text-success">{{ subject_data.total_ideas }}</div>
+                                <small class="text-muted">Idées totales</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="border-end">
+                                <div class="h6 mb-0 text-info">{{ subject_data.my_ideas }}</div>
+                                <small class="text-muted">Mes idées</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="h6 mb-0 text-warning">{{ subject_data.my_votes }}</div>
+                            <small class="text-muted">Mes votes</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Informations sur les votes -->
+                    {% if subject_data.subject.vote_active %}
+                        <div class="alert alert-warning alert-sm py-2">
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            <small>
+                                <strong>Vote actif !</strong> 
+                                {% if subject_data.available_votes > 0 %}
+                                    {{ subject_data.available_votes }} vote(s) disponible(s)
+                                {% else %}
+                                    Vous avez utilisé tous vos votes
+                                {% endif %}
+                            </small>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer bg-light">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            <i class="bi bi-arrow-repeat me-1"></i>
+                            Limite: {{ subject_data.subject.vote_limit }} vote(s)
+                        </small>
+                        <div class="btn-group btn-group-sm">
+                            <a href="/user/subject/{{ subject_data.subject.id }}/ideas" class="btn btn-outline-primary" title="Voir les idées">
+                                <i class="bi bi-lightbulb"></i>
+                            </a>
+                            {% if subject_data.subject.vote_active and subject_data.available_votes > 0 %}
+                                <a href="/user/vote" class="btn btn-outline-warning" title="Voter">
+                                    <i class="bi bi-hand-thumbs-up"></i>
+                                </a>
+                            {% endif %}
+                            {% if subject_data.subject.emission_active %}
+                                <a href="/user/ideas/create?subject_id={{ subject_data.subject.id }}" class="btn btn-outline-success" title="Ajouter une idée">
+                                    <i class="bi bi-plus-circle"></i>
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="bi bi-collection text-muted" style="font-size: 4rem;"></i>
+                <h4 class="mt-3 text-muted">Aucun sujet assigné</h4>
+                <p class="text-muted">
+                    Vous n'avez pas encore de sujets assignés.<br>
+                    Contactez un gestionnaire ou un administrateur pour être assigné à des sujets.
+                </p>
+                <a href="/user/dashboard" class="btn btn-primary mt-3">
+                    <i class="bi bi-arrow-left me-2"></i>Retour au tableau de bord
+                </a>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<style>
+.border-left-primary {
+    border-left: 0.25rem solid #4e73df !important;
+}
+
+.alert-sm {
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.card-header {
+    padding: 0.75rem 1rem;
+}
+
+.card-footer {
+    padding: 0.5rem 1rem;
+}
+</style>
+{% endblock %}

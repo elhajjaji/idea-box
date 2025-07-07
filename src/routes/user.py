@@ -13,6 +13,7 @@ from src.services.idea_service import create_idea, get_ideas_by_subject, add_vot
 from src.services.database import Database
 from src.services.stats_service import get_user_dashboard_stats
 from src.services.activity_log_service import log_activity
+from src.services.metrics_service import MetricsService
 from src.utils.flash_messages import flash
 
 router = APIRouter()
@@ -77,6 +78,9 @@ async def get_user_votes_for_subjects(user_id: str):
 @router.get("/user/dashboard", response_class=HTMLResponse)
 async def user_dashboard(request: Request, current_user: User = Depends(get_current_normal_user)):
     try:
+        # Récupérer les métriques pour l'utilisateur
+        metrics = await MetricsService.get_user_dashboard_metrics(current_user)
+        
         user_subjects, user_stats = await get_user_dashboard_stats(current_user)
         
         # Récupérer les sujets avec vote actif
@@ -88,6 +92,7 @@ async def user_dashboard(request: Request, current_user: User = Depends(get_curr
             "user_subjects": user_subjects,
             "user_stats": user_stats,
             "vote_subjects": vote_subjects,
+            "metrics": metrics,
             "show_sidebar": True
         })
     
@@ -167,7 +172,7 @@ async def create_new_idea(subject_id: str, request: Request, title: str = Form(.
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sujet non trouvé ou vous n'êtes pas attribué à ce sujet.")
     
     if not subject.emission_active:
-        return templates.TemplateResponse("user/subject_ideas.html", {"request": request, "subject": subject, "ideas": await get_ideas_by_subject(subject_id), "current_user": current_user, "error": "L'émission d'idées n'est pas active pour ce sujet."})
+        return templates.TemplateResponse("user/subject_ideas.html", {"request": request, "subject": subject, "ideas": await get_ideas_by_subject(subject_id), "current_user": current_user, "error": "L'émission d'idées n'est pas active pour ce sujet.", "show_sidebar": True})
 
     idea = Idea(subject_id=subject_id, user_id=str(current_user.id), title=title, description=description)
     await create_idea(idea)
@@ -352,3 +357,180 @@ async def batch_vote(request: Request, current_user: User = Depends(get_current_
         from src.utils.flash_messages import flash
         flash(request, f"{success_count} vote(s) enregistré(s) avec succès.", "success")
     return RedirectResponse(url="/user/vote", status_code=303)
+
+@router.get("/user/subjects", response_class=HTMLResponse)
+async def user_subjects(request: Request, current_user: User = Depends(get_current_normal_user)):
+    """Page pour afficher tous les sujets de l'utilisateur"""
+    try:
+        # Récupérer les sujets assignés à l'utilisateur
+        all_subjects = await Database.engine.find(Subject)
+        user_subjects = []
+        
+        for subject in all_subjects:
+            if str(current_user.id) in subject.users_ids or str(current_user.id) in subject.gestionnaires_ids:
+                # Récupérer les idées du sujet
+                ideas = await get_ideas_by_subject(str(subject.id))
+                my_ideas = [idea for idea in ideas if idea.user_id == str(current_user.id)]
+                
+                # Compter les votes de l'utilisateur pour ce sujet
+                my_votes_count = 0
+                for idea in ideas:
+                    if str(current_user.id) in idea.votes:
+                        my_votes_count += 1
+                
+                user_subjects.append({
+                    "subject": subject,
+                    "total_ideas": len(ideas),
+                    "my_ideas": len(my_ideas),
+                    "my_votes": my_votes_count,
+                    "available_votes": max(0, subject.vote_limit - my_votes_count) if subject.vote_active else 0
+                })
+        
+        return templates.TemplateResponse("user/subjects.html", {
+            "request": request,
+            "current_user": current_user,
+            "user_subjects": user_subjects,
+            "subjects_count": len(user_subjects),
+            "show_sidebar": True
+        })
+    except Exception as e:
+        print(f"❌ Erreur subjects utilisateur: {e}")
+        return templates.TemplateResponse("user/subjects.html", {
+            "request": request,
+            "current_user": current_user,
+            "user_subjects": [],
+            "subjects_count": 0,
+            "show_sidebar": True
+        })
+
+@router.get("/user/subjects/ideas", response_class=HTMLResponse)
+async def user_subjects_ideas(request: Request, current_user: User = Depends(get_current_normal_user)):
+    """Page pour afficher toutes les idées par sujet"""
+    try:
+        # Récupérer les sujets assignés à l'utilisateur
+        all_subjects = await Database.engine.find(Subject)
+        subjects_with_ideas = []
+        
+        for subject in all_subjects:
+            if str(current_user.id) in subject.users_ids or str(current_user.id) in subject.gestionnaires_ids:
+                # Récupérer les idées du sujet
+                ideas = await get_ideas_by_subject(str(subject.id))
+                
+                # Enrichir les idées avec des informations supplémentaires
+                enriched_ideas = []
+                for idea in ideas:
+                    # Récupérer l'auteur de l'idée
+                    author = await Database.engine.find_one(User, User.id == idea.user_id)
+                    enriched_ideas.append({
+                        "idea": idea,
+                        "author_name": author.username if author else "Utilisateur inconnu",
+                        "is_my_idea": idea.user_id == str(current_user.id),
+                        "has_voted": str(current_user.id) in idea.votes,
+                        "votes_count": len(idea.votes)
+                    })
+                
+                if enriched_ideas:  # Seulement inclure les sujets avec des idées
+                    subjects_with_ideas.append({
+                        "subject": subject,
+                        "ideas": enriched_ideas,
+                        "ideas_count": len(enriched_ideas),
+                        "my_ideas_count": len([i for i in enriched_ideas if i["is_my_idea"]]),
+                        "my_votes_count": len([i for i in enriched_ideas if i["has_voted"]])
+                    })
+        
+        return templates.TemplateResponse("user/subjects_ideas.html", {
+            "request": request,
+            "current_user": current_user,
+            "subjects_with_ideas": subjects_with_ideas,
+            "subjects_count": len(subjects_with_ideas),
+            "show_sidebar": True
+        })
+    except Exception as e:
+        print(f"❌ Erreur subjects_ideas utilisateur: {e}")
+        return templates.TemplateResponse("user/subjects_ideas.html", {
+            "request": request,
+            "current_user": current_user,
+            "subjects_with_ideas": [],
+            "subjects_count": 0,
+            "show_sidebar": True
+        })
+
+@router.get("/user/ideas/submit", response_class=HTMLResponse)
+async def submit_idea_form(request: Request, current_user: User = Depends(get_current_normal_user)):
+    """Formulaire pour soumettre une nouvelle idée"""
+    try:
+        # Récupérer les sujets avec émission active où l'utilisateur peut soumettre
+        all_subjects = await Database.engine.find(Subject)
+        available_subjects = []
+        
+        for subject in all_subjects:
+            if (subject.emission_active and 
+                (str(current_user.id) in subject.users_ids or str(current_user.id) in subject.gestionnaires_ids)):
+                available_subjects.append(subject)
+        
+        return templates.TemplateResponse("user/submit_idea.html", {
+            "request": request,
+            "current_user": current_user,
+            "available_subjects": available_subjects,
+            "subjects_count": len(available_subjects),
+            "show_sidebar": True
+        })
+    except Exception as e:
+        print(f"❌ Erreur formulaire soumission idée: {e}")
+        return templates.TemplateResponse("user/submit_idea.html", {
+            "request": request,
+            "current_user": current_user,
+            "available_subjects": [],
+            "subjects_count": 0,
+            "show_sidebar": True
+        })
+
+@router.post("/user/ideas/submit")
+async def submit_idea(
+    request: Request,
+    subject_id: str = Form(...),
+    title: str = Form(...),
+    description: str = Form(default=""),
+    current_user: User = Depends(get_current_normal_user)
+):
+    """Soumettre une nouvelle idée"""
+    try:
+        # Vérifier que le sujet existe et accepte les idées
+        subject = await get_subject(subject_id)
+        if not subject:
+            from src.utils.flash_messages import flash
+            flash(request, "Sujet non trouvé.", "error")
+            return RedirectResponse(url="/user/ideas/submit", status_code=303)
+        
+        # Vérifier que l'utilisateur peut soumettre dans ce sujet
+        if not (subject.emission_active and 
+                (str(current_user.id) in subject.users_ids or str(current_user.id) in subject.gestionnaires_ids)):
+            from src.utils.flash_messages import flash
+            flash(request, "Vous ne pouvez pas soumettre d'idée dans ce sujet.", "error")
+            return RedirectResponse(url="/user/ideas/submit", status_code=303)
+        
+        # Créer l'idée
+        idea = await create_idea(
+            subject_id=subject_id,
+            user_id=str(current_user.id),
+            title=title.strip(),
+            description=description.strip()
+        )
+        
+        # Log de l'activité
+        await log_activity(
+            user_id=str(current_user.id),
+            subject_id=subject_id,
+            action="create_idea",
+            details=f"Idée '{title}' créée par {current_user.username}"
+        )
+        
+        from src.utils.flash_messages import flash
+        flash(request, f"Idée '{title}' soumise avec succès!", "success")
+        return RedirectResponse(url="/user/ideas", status_code=303)
+        
+    except Exception as e:
+        print(f"❌ Erreur soumission idée: {e}")
+        from src.utils.flash_messages import flash
+        flash(request, "Erreur lors de la soumission de l'idée.", "error")
+        return RedirectResponse(url="/user/ideas/submit", status_code=303)

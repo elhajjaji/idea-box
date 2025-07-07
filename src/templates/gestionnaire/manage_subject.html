@@ -4,224 +4,226 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 mb-0 text-gray-800">
-        <i class="bi bi-pencil-square me-2"></i>Gestion du sujet: {{ subject.name }}
-    </h1>
-    <div class="btn-group">
-        <a href="/gestionnaire/dashboard" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left me-1"></i>Retour au tableau de bord
+    <div>
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="bi bi-gear me-2"></i>Gestion du sujet
+        </h1>
+        <p class="text-muted mb-0">{{ subject.name }}</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="/gestionnaire/subject/{{ subject.id }}/users" class="btn btn-outline-primary">
+            <i class="bi bi-people me-2"></i>Utilisateurs
         </a>
-        <a href="/gestionnaire/subject/{{ subject.id }}/manage_users" class="btn btn-info">
-            <i class="bi bi-people me-1"></i>Gérer les utilisateurs
+        <a href="/gestionnaire/subject/{{ subject.id }}/history" class="btn btn-outline-info">
+            <i class="bi bi-clock-history me-2"></i>Historique
+        </a>
+        <a href="/gestionnaire/subjects" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Retour
         </a>
     </div>
 </div>
 
-<!-- Informations du sujet -->
+<!-- Contrôles rapides -->
 <div class="row mb-4">
-    <div class="col-12">
-        <div class="card shadow">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-toggles me-2"></i>Contrôles du sujet
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-6">
+                        <div class="text-center">
+                            <form method="post" action="/gestionnaire/subject/{{ subject.id }}/toggle_emission">
+                                <button type="submit" class="btn {% if subject.emission_active %}btn-success{% else %}btn-outline-success{% endif %} btn-lg w-100">
+                                    <i class="bi bi-lightbulb me-2"></i>
+                                    {% if subject.emission_active %}
+                                        Émission ACTIVE
+                                    {% else %}
+                                        Émission FERMÉE
+                                    {% endif %}
+                                </button>
+                            </form>
+                            <small class="text-muted">Cliquez pour {{ 'désactiver' if subject.emission_active else 'activer' }}</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center">
+                            <form method="post" action="/gestionnaire/subject/{{ subject.id }}/toggle_vote">
+                                <button type="submit" class="btn {% if subject.vote_active %}btn-warning{% else %}btn-outline-warning{% endif %} btn-lg w-100">
+                                    <i class="bi bi-hand-thumbs-up me-2"></i>
+                                    {% if subject.vote_active %}
+                                        Vote ACTIF
+                                    {% else %}
+                                        Vote FERMÉ
+                                    {% endif %}
+                                </button>
+                            </form>
+                            <small class="text-muted">Cliquez pour {{ 'désactiver' if subject.vote_active else 'activer' }}</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3 text-center">
+                    <small class="text-info">
+                        <i class="bi bi-info-circle me-1"></i>
+                        L'activation du vote désactive automatiquement l'émission d'idées
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
                     <i class="bi bi-info-circle me-2"></i>Informations du sujet
                 </h5>
             </div>
             <div class="card-body">
                 <div class="row">
-                    <div class="col-md-8">
-                        <h4>{{ subject.name }}</h4>
-                        {% if subject.description %}
-                            <p class="text-muted">{{ subject.description }}</p>
-                        {% else %}
-                            <p class="text-muted fst-italic">Aucune description</p>
-                        {% endif %}
+                    <div class="col-4 text-center">
+                        <h4 class="text-primary">{{ metrics.ideas_stats.total_ideas if metrics else 0 }}</h4>
+                        <small class="text-muted">Idées</small>
                     </div>
-                    <div class="col-md-4">
-                        <div class="row text-center">
-                            <div class="col-6">
-                                <div class="border-end">
-                                    <span class="badge {% if subject.emission_active %}bg-success{% else %}bg-secondary{% endif %} mb-2">
-                                        <i class="bi bi-lightbulb{% if subject.emission_active %}-fill{% endif %} me-1"></i>
-                                        {% if subject.emission_active %}Émission Active{% else %}Émission Inactive{% endif %}
-                                    </span>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <span class="badge {% if subject.vote_active %}bg-primary{% else %}bg-secondary{% endif %} mb-2">
-                                    <i class="bi bi-hand-thumbs-up{% if subject.vote_active %}-fill{% endif %} me-1"></i>
-                                    {% if subject.vote_active %}Vote Actif{% else %}Vote Inactif{% endif %}
+                    <div class="col-4 text-center">
+                        <h4 class="text-success">{{ metrics.ideas_stats.total_votes if metrics else 0 }}</h4>
+                        <small class="text-muted">Votes</small>
+                    </div>
+                    <div class="col-4 text-center">
+                        <h4 class="text-info">{{ subject.users_ids|length }}</h4>
+                        <small class="text-muted">Utilisateurs</small>
+                    </div>
+                </div>
+                <hr>
+                <div class="row">
+                    <div class="col-6">
+                        <strong>Limite de votes:</strong> {{ subject.vote_limit }}
+                    </div>
+                    <div class="col-6">
+                        <strong>Gestionnaires:</strong> {{ subject.gestionnaires_ids|length }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gestion des utilisateurs -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">
+            <i class="bi bi-people me-2"></i>Utilisateurs assignés ({{ subject_users|length if subject_users else 0 }})
+        </h5>
+        <a href="/gestionnaire/subject/{{ subject.id }}/users" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-person-plus me-1"></i>Gérer les utilisateurs
+        </a>
+    </div>
+    <div class="card-body">
+        {% if subject_users %}
+            <div class="row">
+                {% for user in subject_users[:8] %}
+                <div class="col-md-3 mb-2">
+                    <div class="d-flex align-items-center">
+                        <div class="avatar-sm bg-primary text-white rounded-circle me-2">
+                            <i class="bi bi-person"></i>
+                        </div>
+                        <div>
+                            <div class="fw-bold">{{ user.prenom }} {{ user.nom }}</div>
+                            <small class="text-muted">{{ user.email }}</small>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% if subject_users|length > 8 %}
+                <div class="text-center mt-3">
+                    <small class="text-muted">Et {{ subject_users|length - 8 }} autres utilisateurs...</small>
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="text-center py-3">
+                <i class="bi bi-people text-muted" style="font-size: 2rem;"></i>
+                <p class="text-muted mt-2">Aucun utilisateur assigné</p>
+                <a href="/gestionnaire/subject/{{ subject.id }}/users" class="btn btn-primary btn-sm">
+                    <i class="bi bi-person-plus me-1"></i>Ajouter des utilisateurs
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Top des idées -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="bi bi-trophy me-2"></i>Top des idées les plus votées
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if ideas %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Rang</th>
+                            <th>Idée</th>
+                            <th>Votes</th>
+                            <th>Auteur</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for idea in ideas[:5] %}
+                        <tr>
+                            <td>
+                                <span class="badge bg-{% if loop.index == 1 %}warning{% elif loop.index == 2 %}secondary{% elif loop.index == 3 %}info{% else %}light{% endif %}">
+                                    #{{ loop.index }}
                                 </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Liste des idées -->
-<div class="row">
-    <div class="col-12">
-        <div class="card shadow">
-            <div class="card-header">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <i class="bi bi-lightbulb me-2"></i>Idées soumises 
-                        <span class="badge bg-info">{{ ideas|length }}</span>
-                    </h5>
-                    {% if ideas %}
-                        <div class="text-muted small">
-                            <i class="bi bi-info-circle me-1"></i>
-                            Cliquez sur une idée pour la modifier
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="card-body">
-                {% if ideas %}
-                    <div class="accordion" id="ideasAccordion">
-                        {% for idea in ideas %}
-                            <div class="accordion-item mb-3">
-                                <h2 class="accordion-header" id="heading{{ loop.index }}">
-                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}" aria-expanded="false" aria-controls="collapse{{ loop.index }}">
-                                        <div class="d-flex justify-content-between w-100 me-3">
-                                            <div>
-                                                <strong>{{ idea.title }}</strong>
-                                                <small class="text-muted ms-2">
-                                                    <i class="bi bi-person me-1"></i>{{ idea.author_name }}
-                                                    <i class="bi bi-calendar3 ms-2 me-1"></i>{{ idea.created_at.strftime('%d/%m/%Y %H:%M') }}
-                                                </small>
-                                            </div>
-                                            {% if idea.votes_count > 0 %}
-                                                <span class="badge bg-primary">
-                                                    <i class="bi bi-hand-thumbs-up me-1"></i>{{ idea.votes_count }} vote(s)
-                                                </span>
-                                            {% endif %}
-                                        </div>
-                                    </button>
-                                </h2>
-                                <div id="collapse{{ loop.index }}" class="accordion-collapse collapse" aria-labelledby="heading{{ loop.index }}" data-bs-parent="#ideasAccordion">
-                                    <div class="accordion-body">
-                                        <!-- Formulaire de modification -->
-                                        <form action="/gestionnaire/subject/{{ subject.id }}/edit_idea/{{ idea.id }}" method="post" class="mb-3">
-                                            <div class="row">
-                                                <div class="col-md-6 mb-3">
-                                                    <label for="title_{{ idea.id }}" class="form-label">
-                                                        <i class="bi bi-card-text me-1"></i>Titre de l'idée
-                                                    </label>
-                                                    <input type="text" class="form-control" id="title_{{ idea.id }}" name="title" value="{{ idea.title }}" required>
-                                                </div>
-                                                <div class="col-md-6 mb-3">
-                                                    <label class="form-label">
-                                                        <i class="bi bi-person me-1"></i>Informations
-                                                    </label>
-                                                    <div class="form-control-plaintext">
-                                                        <small class="text-muted">
-                                                            Auteur: {{ idea.author_name }}<br>
-                                                            Créé le: {{ idea.created_at.strftime('%d/%m/%Y à %H:%M') }}
-                                                            {% if idea.votes_count > 0 %}
-                                                                <br><i class="bi bi-hand-thumbs-up text-primary me-1"></i>{{ idea.votes_count }} vote(s)
-                                                            {% endif %}
-                                                        </small>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="content_{{ idea.id }}" class="form-label">
-                                                    <i class="bi bi-chat-square-text me-1"></i>Contenu de l'idée
-                                                </label>
-                                                <textarea class="form-control" id="content_{{ idea.id }}" name="content" rows="4" required>{{ idea.description }}</textarea>
-                                            </div>
-                                            <div class="d-flex justify-content-between">
-                                                <div>
-                                                    <button type="submit" class="btn btn-success me-2">
-                                                        <i class="bi bi-check-circle me-1"></i>Sauvegarder les modifications
-                                                    </button>
-                                                    <button type="button" class="btn btn-secondary" onclick="resetForm('{{ idea.id }}')">
-                                                        <i class="bi bi-arrow-clockwise me-1"></i>Annuler
-                                                    </button>
-                                                </div>
-                                                <button type="button" class="btn btn-danger" onclick="confirmDelete('{{ idea.id }}', '{{ idea.title }}')">
-                                                    <i class="bi bi-trash me-1"></i>Supprimer l'idée
-                                                </button>
-                                            </div>
-                                        </form>
-                                        
-                                        <!-- Formulaire de suppression (caché) -->
-                                        <form id="deleteForm_{{ idea.id }}" action="/gestionnaire/subject/{{ subject.id }}/delete_idea/{{ idea.id }}" method="post" style="display: none;">
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="text-center py-5">
-                        <i class="bi bi-lightbulb text-muted" style="font-size: 3rem;"></i>
-                        <h4 class="text-muted mt-3">Aucune idée soumise</h4>
-                        <p class="text-muted">
-                            Aucune idée n'a encore été soumise pour ce sujet.<br>
-                            {% if subject.emission_active %}
-                                L'émission d'idées est actuellement <strong class="text-success">active</strong>.
-                            {% else %}
-                                L'émission d'idées est actuellement <strong class="text-danger">inactive</strong>.
-                            {% endif %}
-                        </p>
-                        {% if not subject.emission_active %}
-                            <form action="/gestionnaire/subject/{{ subject.id }}/activate_emission" method="post" style="display: inline;">
-                                <button type="submit" class="btn btn-success">
-                                    <i class="bi bi-play-circle me-1"></i>Activer l'émission d'idées
+                            </td>
+                            <td>{{ idea.title }}</td>
+                            <td>
+                                <span class="badge bg-success">{{ idea.votes|length }}</span>
+                            </td>
+                            <td>{{ idea.user_id }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" onclick="viewIdea('{{ idea.id }}')">
+                                    <i class="bi bi-eye"></i>
                                 </button>
-                            </form>
-                        {% endif %}
-                    </div>
-                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
-        </div>
+        {% else %}
+            <div class="text-center py-3">
+                <i class="bi bi-lightbulb text-muted" style="font-size: 2rem;"></i>
+                <p class="text-muted mt-2">Aucune idée soumise pour le moment</p>
+            </div>
+        {% endif %}
     </div>
 </div>
 
-<!-- Modal de confirmation de suppression -->
-<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title" id="deleteModalLabel">
-                    <i class="bi bi-exclamation-triangle me-2"></i>Confirmer la suppression
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p>Êtes-vous sûr de vouloir supprimer l'idée <strong id="ideaToDelete"></strong> ?</p>
-                <div class="alert alert-warning">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    <strong>Attention :</strong> Cette action est irréversible. L'idée et tous ses votes seront définitivement supprimés.
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="bi bi-x-circle me-1"></i>Annuler
-                </button>
-                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
-                    <i class="bi bi-trash me-1"></i>Supprimer définitivement
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
+{% endblock %}
 
+{% block scripts %}
+{% include "charts_base.html" %}
 <script>
+function viewIdea(ideaId) {
+    console.log('Voir idée:', ideaId);
+}
+
 // Variables globales pour la suppression
 let currentIdeaId = '';
 
 // Fonction pour réinitialiser un formulaire
 function resetForm(ideaId) {
-    // Réinitialiser le formulaire à ses valeurs originales
     const form = document.querySelector(`#collapse${ideaId.split('_')[0]} form`);
     if (form) {
         form.reset();
-        // Recharger la page pour récupérer les valeurs originales
         window.location.reload();
     }
 }
@@ -231,12 +233,10 @@ function confirmDelete(ideaId, ideaTitle) {
     currentIdeaId = ideaId;
     document.getElementById('ideaToDelete').textContent = ideaTitle;
     
-    // Configurer le bouton de confirmation
     document.getElementById('confirmDeleteBtn').onclick = function() {
         document.getElementById('deleteForm_' + ideaId).submit();
     };
     
-    // Afficher le modal
     const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
     deleteModal.show();
 }
@@ -250,7 +250,6 @@ document.addEventListener('DOMContentLoaded', function() {
             this.style.height = (this.scrollHeight) + 'px';
         });
         
-        // Ajuster la hauteur initiale
         textarea.style.height = 'auto';
         textarea.style.height = (textarea.scrollHeight) + 'px';
     });

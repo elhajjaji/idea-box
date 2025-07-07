@@ -16,6 +16,7 @@ from src.services.subject_service import (
 )
 from src.services.database import Database
 from src.services.activity_log_service import log_activity, get_subject_activities
+from src.services.metrics_service import MetricsService
 
 router = APIRouter()
 
@@ -33,6 +34,9 @@ async def get_current_gestionnaire(request: Request, current_user: User = Depend
 
 @router.get("/gestionnaire/dashboard", response_class=HTMLResponse)
 async def gestionnaire_dashboard(request: Request, current_user: User = Depends(get_current_gestionnaire)):
+    # Récupérer les métriques pour le gestionnaire
+    metrics = await MetricsService.get_gestionnaire_dashboard_metrics(current_user)
+    
     subjects = await get_subjects_by_gestionnaire(str(current_user.id))
     from src.services.idea_service import get_ideas_by_subject
     # Ajout du nombre d'idées et de votants pour chaque sujet
@@ -40,12 +44,20 @@ async def gestionnaire_dashboard(request: Request, current_user: User = Depends(
         ideas = await get_ideas_by_subject(str(subject.id))
         subject.ideas_count = len(ideas)
         subject.votes_count = sum(len(idea.votes) for idea in ideas)
+        
     active_subject_id = request.session.get("active_subject_id")
     active_subject = None
     if active_subject_id:
         active_subject = await get_subject(active_subject_id)
 
-    return templates.TemplateResponse("gestionnaire/dashboard.html", {"request": request, "subjects": subjects, "active_subject": active_subject, "current_user": current_user, "show_sidebar": True})
+    return templates.TemplateResponse("gestionnaire/dashboard.html", {
+        "request": request, 
+        "subjects": subjects, 
+        "active_subject": active_subject, 
+        "current_user": current_user, 
+        "metrics": metrics,
+        "show_sidebar": True
+    })
 
 @router.get("/gestionnaire/subjects", response_class=HTMLResponse)
 async def gestionnaire_subjects(request: Request, current_user: User = Depends(get_current_gestionnaire)):
@@ -73,7 +85,7 @@ async def gestionnaire_users(request: Request, current_user: User = Depends(get_
     # Récupérer tous les sujets gérés par le gestionnaire
     subjects = await get_subjects_by_gestionnaire(str(current_user.id))
     
-    # Récupérer tous les utilisateurs assignés aux sujets du gestionnaire
+    # Récupérer tous les invités assignés aux sujets du gestionnaire
     all_users = await get_users()
     managed_users = []
     
@@ -120,7 +132,7 @@ async def manage_subject_users_form(subject_id: str, request: Request, current_u
     # Récupérer les gestionnaires du sujet
     subject_managers = [user for user in all_users if str(user.id) in subject.gestionnaires_ids]
     
-    # Récupérer les utilisateurs qui peuvent devenir gestionnaires (tous les utilisateurs existants sauf ceux déjà gestionnaires de ce sujet)
+    # Récupérer les invités qui peuvent devenir gestionnaires (tous les invités existants sauf ceux déjà gestionnaires de ce sujet)
     potential_managers = [user for user in all_users if str(user.id) not in subject.gestionnaires_ids]
 
     # Convertir les objets User en dictionnaires pour la sérialisation JSON
@@ -150,8 +162,8 @@ async def manage_subject_users_form(subject_id: str, request: Request, current_u
 async def add_user_to_subject_route(subject_id: str, request: Request, current_user: User = Depends(get_current_gestionnaire), user_id: str = Form(...)):
     subject = await add_user_to_subject(subject_id, user_id)
     if not subject:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Impossible d'ajouter l'utilisateur au sujet.")
-    # Ajout du rôle gestionnaire si l'utilisateur est dans gestionnaires_ids
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Impossible d'ajouter l'invité au sujet.")
+    # Ajout du rôle gestionnaire si l'invité est dans gestionnaires_ids
     if str(user_id) in subject.gestionnaires_ids:
         await add_role_to_user(user_id, "gestionnaire")
     return RedirectResponse(url=f"/gestionnaire/subject/{subject_id}/manage_users", status_code=status.HTTP_303_SEE_OTHER)
@@ -159,7 +171,7 @@ async def add_user_to_subject_route(subject_id: str, request: Request, current_u
 @router.post("/gestionnaire/subject/{subject_id}/add_users")
 async def add_users_to_subject_route(subject_id: str, request: Request, current_user: User = Depends(get_current_gestionnaire), user_ids: str = Form(...)):
     """
-    Ajoute plusieurs utilisateurs au sujet en une seule fois
+    Ajoute plusieurs invités au sujet en une seule fois
     """
     import json
     try:
@@ -174,7 +186,7 @@ async def add_users_to_subject_route(subject_id: str, request: Request, current_
         try:
             subject = await add_user_to_subject(subject_id, user_id)
             if subject:
-                # Ajout du rôle gestionnaire si l'utilisateur est dans gestionnaires_ids
+                # Ajout du rôle gestionnaire si l'invité est dans gestionnaires_ids
                 if str(user_id) in subject.gestionnaires_ids:
                     await add_role_to_user(user_id, "gestionnaire")
                 success_count += 1
@@ -184,9 +196,9 @@ async def add_users_to_subject_route(subject_id: str, request: Request, current_
             failed_count += 1
     
     if success_count > 0:
-        request.session["success_message"] = f"{success_count} utilisateur(s) ajouté(s) au sujet avec succès."
+        request.session["success_message"] = f"{success_count} invité(s) ajouté(s) au sujet avec succès."
     if failed_count > 0:
-        request.session["error_message"] = f"Échec pour {failed_count} utilisateur(s)."
+        request.session["error_message"] = f"Échec pour {failed_count} invité(s)."
     
     return RedirectResponse(url=f"/gestionnaire/subject/{subject_id}/manage_users", status_code=status.HTTP_303_SEE_OTHER)
 
@@ -194,19 +206,19 @@ async def add_users_to_subject_route(subject_id: str, request: Request, current_
 async def remove_user_from_subject_route(subject_id: str, request: Request, current_user: User = Depends(get_current_gestionnaire), user_id: str = Form(...)):
     subject = await remove_user_from_subject(subject_id, user_id)
     if not subject:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Impossible de retirer l'utilisateur du sujet.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Impossible de retirer l'invité du sujet.")
     return RedirectResponse(url=f"/gestionnaire/subject/{subject_id}/manage_users", status_code=status.HTTP_303_SEE_OTHER)
 
 @router.post("/gestionnaire/subject/{subject_id}/remove_users")
 async def remove_users_from_subject_route(subject_id: str, request: Request, current_user: User = Depends(get_current_gestionnaire), user_ids: str = Form(...)):
     """
-    Retire plusieurs utilisateurs du sujet en une seule fois
+    Retire plusieurs invités du sujet en une seule fois
     """
     import json
     try:
         user_ids_list = json.loads(user_ids)
     except json.JSONDecodeError:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Format des IDs utilisateurs invalide.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Format des IDs invités invalide.")
     
     success_count = 0
     failed_count = 0
@@ -222,9 +234,9 @@ async def remove_users_from_subject_route(subject_id: str, request: Request, cur
             failed_count += 1
     
     if success_count > 0:
-        request.session["success_message"] = f"{success_count} utilisateur(s) retiré(s) du sujet avec succès."
+        request.session["success_message"] = f"{success_count} invité(s) retiré(s) du sujet avec succès."
     if failed_count > 0:
-        request.session["error_message"] = f"Échec pour {failed_count} utilisateur(s)."
+        request.session["error_message"] = f"Échec pour {failed_count} invité(s)."
     
     return RedirectResponse(url=f"/gestionnaire/subject/{subject_id}/manage_users", status_code=status.HTTP_303_SEE_OTHER)
 
@@ -368,13 +380,13 @@ async def create_and_add_user_route(
     nom: str = Form(...),
     password: str = Form(...)
 ):
-    # Vérifier que l'utilisateur est gestionnaire du sujet
+    # Vérifier que l'invité est gestionnaire du sujet
     subject = await get_subject(subject_id)
     if not subject or str(current_user.id) not in subject.gestionnaires_ids:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sujet non trouvé ou vous n'êtes pas gestionnaire de ce sujet.")
     
     try:
-        # Créer l'objet utilisateur avec mot de passe hashé
+        # Créer l'objet invité avec mot de passe hashé
         from src.services.auth_service import get_password_hash
         hashed_password = get_password_hash(password)
         
@@ -386,20 +398,20 @@ async def create_and_add_user_route(
             roles=["user"]
         )
         
-        # Sauvegarder l'utilisateur
+        # Sauvegarder l'invité
         created_user = await create_user(new_user)
         if created_user:
-            # Ajouter l'utilisateur au sujet
+            # Ajouter l'invité au sujet
             await add_user_to_subject(subject_id, str(created_user.id))
-            # Ajout du rôle gestionnaire si l'utilisateur est dans gestionnaires_ids
+            # Ajout du rôle gestionnaire si l'invité est dans gestionnaires_ids
             subject = await get_subject(subject_id)
             if str(created_user.id) in subject.gestionnaires_ids:
                 await add_role_to_user(str(created_user.id), "gestionnaire")
-            request.session["success_message"] = f"Utilisateur {email} créé et ajouté au sujet avec succès."
+            request.session["success_message"] = f"Invité {email} créé et ajouté au sujet avec succès."
         else:
-            request.session["error_message"] = "Erreur lors de la création de l'utilisateur."
+            request.session["error_message"] = "Erreur lors de la création de l'invité."
     except Exception as e:
-        request.session["error_message"] = f"Erreur lors de la création de l'utilisateur: {str(e)}"
+        request.session["error_message"] = f"Erreur lors de la création de l'invité: {str(e)}"
     
     return RedirectResponse(url=f"/gestionnaire/subject/{subject_id}/manage_users", status_code=status.HTTP_303_SEE_OTHER)
 
@@ -806,3 +818,79 @@ async def subject_history(subject_id: str, request: Request, current_user: User 
         "current_user": current_user,
         "show_sidebar": True
     })
+
+@router.get("/gestionnaire/subject/manage", response_class=HTMLResponse)
+async def manage_subjects_overview(request: Request, current_user: User = Depends(get_current_gestionnaire)):
+    """Page de gestion rapide des sujets"""
+    try:
+        subjects = await get_subjects_by_gestionnaire(str(current_user.id))
+        
+        # Enrichir les sujets avec des métriques
+        from src.services.idea_service import get_ideas_by_subject
+        enriched_subjects = []
+        
+        for subject in subjects:
+            ideas = await get_ideas_by_subject(str(subject.id))
+            all_users = await get_users()
+            subject_users = [user for user in all_users if str(user.id) in subject.users_ids]
+            
+            enriched_subjects.append({
+                "subject": subject,
+                "ideas_count": len(ideas),
+                "users_count": len(subject_users),
+                "votes_count": sum(len(idea.votes) for idea in ideas),
+                "status": "Émission" if subject.emission_active else "Vote" if subject.vote_active else "Fermé"
+            })
+        
+        return templates.TemplateResponse("gestionnaire/manage_subjects_overview.html", {
+            "request": request,
+            "current_user": current_user,
+            "subjects": enriched_subjects,
+            "subjects_count": len(subjects),
+            "show_sidebar": True
+        })
+    except Exception as e:
+        print(f"❌ Erreur gestion rapide sujets: {e}")
+        return templates.TemplateResponse("gestionnaire/manage_subjects_overview.html", {
+            "request": request,
+            "current_user": current_user,
+            "subjects": [],
+            "subjects_count": 0,
+            "show_sidebar": True
+        })
+
+@router.get("/gestionnaire/users/manage", response_class=HTMLResponse)
+async def manage_users_overview(request: Request, current_user: User = Depends(get_current_gestionnaire)):
+    """Page de gestion globale des invités"""
+    try:
+        subjects = await get_subjects_by_gestionnaire(str(current_user.id))
+        all_users = await get_users()
+        
+        # Organiser les utilisateurs par sujet
+        subjects_with_users = []
+        for subject in subjects:
+            subject_users = [user for user in all_users if str(user.id) in subject.users_ids]
+            available_users = [user for user in all_users if str(user.id) not in subject.users_ids and "user" in user.roles]
+            
+            subjects_with_users.append({
+                "subject": subject,
+                "users": subject_users,
+                "available_users": available_users
+            })
+        
+        return templates.TemplateResponse("gestionnaire/manage_users_overview.html", {
+            "request": request,
+            "current_user": current_user,
+            "subjects_with_users": subjects_with_users,
+            "subjects_count": len(subjects),
+            "show_sidebar": True
+        })
+    except Exception as e:
+        print(f"❌ Erreur gestion globale invités: {e}")
+        return templates.TemplateResponse("gestionnaire/manage_users_overview.html", {
+            "request": request,
+            "current_user": current_user,
+            "subjects_with_users": [],
+            "subjects_count": 0,
+            "show_sidebar": True
+        })

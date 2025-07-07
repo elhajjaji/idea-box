@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}Soumettre une idée - Boîte à Idées{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-0 text-gray-800">
+                        <i class="bi bi-plus-circle text-primary me-2"></i>
+                        Soumettre une idée
+                    </h1>
+                    <p class="text-muted mt-1">Partagez vos idées avec la communauté</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="/user/ideas" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-1"></i>Retour à mes idées
+                    </a>
+                    <a href="/user/dashboard" class="btn btn-outline-primary">
+                        <i class="bi bi-speedometer2 me-1"></i>Tableau de bord
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if subjects_count > 0 %}
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card shadow">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-lightbulb me-2"></i>
+                            Nouvelle idée
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="post" action="/user/ideas/submit">
+                            <div class="mb-3">
+                                <label for="subject_id" class="form-label">
+                                    <i class="bi bi-collection me-1"></i>
+                                    Sujet <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select" name="subject_id" id="subject_id" required>
+                                    <option value="">Sélectionnez un sujet...</option>
+                                    {% for subject in available_subjects %}
+                                        <option value="{{ subject.id }}">
+                                            {{ subject.name }}
+                                            {% if subject.description %}
+                                                - {{ subject.description[:50] }}{% if subject.description|length > 50 %}...{% endif %}
+                                            {% endif %}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Seuls les sujets avec émission active sont disponibles.
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="title" class="form-label">
+                                    <i class="bi bi-type me-1"></i>
+                                    Titre de l'idée <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control" name="title" id="title" 
+                                       required maxlength="200" 
+                                       placeholder="Donnez un titre clair et concis à votre idée">
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Maximum 200 caractères. Soyez précis et engageant.
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="description" class="form-label">
+                                    <i class="bi bi-text-paragraph me-1"></i>
+                                    Description détaillée
+                                </label>
+                                <textarea class="form-control" name="description" id="description" 
+                                          rows="6" maxlength="1000"
+                                          placeholder="Décrivez votre idée en détail. Expliquez le problème qu'elle résout, comment elle fonctionne, et quels sont les bénéfices attendus."></textarea>
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Maximum 1000 caractères. Plus votre description est détaillée, plus les autres pourront comprendre et évaluer votre idée.
+                                </div>
+                                <div class="d-flex justify-content-end mt-1">
+                                    <small class="text-muted">
+                                        <span id="char-count">0</span> / 1000 caractères
+                                    </small>
+                                </div>
+                            </div>
+
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <button type="button" class="btn btn-outline-secondary" onclick="history.back()">
+                                    <i class="bi bi-x-circle me-1"></i>
+                                    Annuler
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-send me-1"></i>
+                                    Soumettre l'idée
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Conseils pour une bonne idée -->
+                <div class="card mt-4">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0">
+                            <i class="bi bi-lightbulb me-1"></i>
+                            Conseils pour une idée réussie
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="text-success">
+                                    <i class="bi bi-check-circle me-1"></i>
+                                    À faire
+                                </h6>
+                                <ul class="list-unstyled">
+                                    <li><i class="bi bi-arrow-right text-success me-1"></i> Être spécifique et concret</li>
+                                    <li><i class="bi bi-arrow-right text-success me-1"></i> Expliquer le problème résolu</li>
+                                    <li><i class="bi bi-arrow-right text-success me-1"></i> Proposer une solution réaliste</li>
+                                    <li><i class="bi bi-arrow-right text-success me-1"></i> Mentionner les bénéfices attendus</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="text-danger">
+                                    <i class="bi bi-x-circle me-1"></i>
+                                    À éviter
+                                </h6>
+                                <ul class="list-unstyled">
+                                    <li><i class="bi bi-arrow-right text-danger me-1"></i> Rester trop vague ou général</li>
+                                    <li><i class="bi bi-arrow-right text-danger me-1"></i> Critiquer sans proposer de solution</li>
+                                    <li><i class="bi bi-arrow-right text-danger me-1"></i> Dupliquer une idée existante</li>
+                                    <li><i class="bi bi-arrow-right text-danger me-1"></i> Utiliser un langage offensant</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="bi bi-exclamation-triangle text-warning" style="font-size: 4rem;"></i>
+                        <h4 class="mt-3">Aucun sujet disponible</h4>
+                        <p class="text-muted">
+                            Il n'y a actuellement aucun sujet avec émission active où vous pouvez soumettre des idées.
+                        </p>
+                        <div class="mt-4">
+                            <a href="/user/dashboard" class="btn btn-primary me-2">
+                                <i class="bi bi-speedometer2 me-1"></i>Tableau de bord
+                            </a>
+                            <a href="/user/subjects" class="btn btn-outline-secondary">
+                                <i class="bi bi-collection me-1"></i>Voir mes sujets
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+// Compteur de caractères pour la description
+document.getElementById('description').addEventListener('input', function() {
+    const charCount = this.value.length;
+    document.getElementById('char-count').textContent = charCount;
+    
+    // Changer la couleur en fonction du nombre de caractères
+    const charCountElement = document.getElementById('char-count');
+    if (charCount > 800) {
+        charCountElement.className = 'text-danger';
+    } else if (charCount > 600) {
+        charCountElement.className = 'text-warning';
+    } else {
+        charCountElement.className = 'text-muted';
+    }
+});
+
+// Validation du formulaire
+document.querySelector('form').addEventListener('submit', function(e) {
+    const title = document.getElementById('title').value.trim();
+    const subjectId = document.getElementById('subject_id').value;
+    
+    if (!title) {
+        e.preventDefault();
+        alert('Le titre est obligatoire.');
+        document.getElementById('title').focus();
+        return;
+    }
+    
+    if (!subjectId) {
+        e.preventDefault();
+        alert('Veuillez sélectionner un sujet.');
+        document.getElementById('subject_id').focus();
+        return;
+    }
+    
+    // Confirmation avant soumission
+    if (!confirm('Êtes-vous sûr de vouloir soumettre cette idée ?')) {
+        e.preventDefault();
+    }
+});
+</script>
+{% endblock %}

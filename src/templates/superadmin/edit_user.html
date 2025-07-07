@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Ajouter un invité - Super Admin{% endblock %}
+{% block title %}Modifier un invité - Super Admin{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -9,10 +9,10 @@
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h1 class="h3 mb-0 text-gray-800">
-                        <i class="bi bi-person-plus text-primary me-2"></i>
-                        Ajouter un invité
+                        <i class="bi bi-person-gear text-primary me-2"></i>
+                        Modifier un invité
                     </h1>
-                    <p class="text-muted mt-1">Créez un nouveau compte invité avec les rôles et permissions appropriés</p>
+                    <p class="text-muted mt-1">Modifiez les informations et rôles de l'invité</p>
                 </div>
                 <div class="d-flex gap-2">
                     <a href="/superadmin/users" class="btn btn-outline-secondary">
@@ -36,14 +36,15 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    <form method="post" action="/superadmin/users/add" id="addUserForm">
+                    <form method="post" action="/superadmin/users/{{ user_to_edit.id }}/edit">
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="prenom" class="form-label">
                                         <i class="bi bi-person me-1"></i>Prénom <span class="text-danger">*</span>
                                     </label>
-                                    <input type="text" class="form-control" id="prenom" name="prenom" required>
+                                    <input type="text" class="form-control" id="prenom" name="prenom" 
+                                           value="{{ user_to_edit.prenom }}" required>
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -51,7 +52,8 @@
                                     <label for="nom" class="form-label">
                                         <i class="bi bi-person me-1"></i>Nom <span class="text-danger">*</span>
                                     </label>
-                                    <input type="text" class="form-control" id="nom" name="nom" required>
+                                    <input type="text" class="form-control" id="nom" name="nom" 
+                                           value="{{ user_to_edit.nom }}" required>
                                 </div>
                             </div>
                         </div>
@@ -60,16 +62,9 @@
                             <label for="email" class="form-label">
                                 <i class="bi bi-envelope me-1"></i>Adresse email <span class="text-danger">*</span>
                             </label>
-                            <input type="email" class="form-control" id="email" name="email" required>
+                            <input type="email" class="form-control" id="email" name="email" 
+                                   value="{{ user_to_edit.email }}" required>
                             <div class="form-text">L'adresse email sert d'identifiant pour la connexion</div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="password" class="form-label">
-                                <i class="bi bi-lock me-1"></i>Mot de passe <span class="text-danger">*</span>
-                            </label>
-                            <input type="password" class="form-control" id="password" name="password" required>
-                            <div class="form-text">Le mot de passe doit contenir au moins 8 caractères</div>
                         </div>
 
                         <div class="mb-4">
@@ -79,7 +74,8 @@
                             <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="role_user" name="roles" value="user" checked>
+                                        <input class="form-check-input" type="checkbox" id="role_user" name="roles" value="user"
+                                               {% if "user" in user_to_edit.roles %}checked{% endif %}>
                                         <label class="form-check-label" for="role_user">
                                             <i class="bi bi-person text-primary me-1"></i>
                                             <strong>Invité</strong>
@@ -89,7 +85,8 @@
                                 </div>
                                 <div class="col-md-4">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="role_gestionnaire" name="roles" value="gestionnaire">
+                                        <input class="form-check-input" type="checkbox" id="role_gestionnaire" name="roles" value="gestionnaire"
+                                               {% if "gestionnaire" in user_to_edit.roles %}checked{% endif %}>
                                         <label class="form-check-label" for="role_gestionnaire">
                                             <i class="bi bi-kanban text-warning me-1"></i>
                                             <strong>Gestionnaire</strong>
@@ -99,7 +96,8 @@
                                 </div>
                                 <div class="col-md-4">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="role_superadmin" name="roles" value="superadmin">
+                                        <input class="form-check-input" type="checkbox" id="role_superadmin" name="roles" value="superadmin"
+                                               {% if "superadmin" in user_to_edit.roles %}checked{% endif %}>
                                         <label class="form-check-label" for="role_superadmin">
                                             <i class="bi bi-shield-fill-check text-danger me-1"></i>
                                             <strong>Super Admin</strong>
@@ -125,7 +123,8 @@
                                 <div class="col-md-6 mb-2">
                                     <div class="form-check">
                                         <input class="form-check-input subject-checkbox" type="checkbox" 
-                                               id="subject_{{ subject.id }}" name="managed_subjects" value="{{ subject.id }}">
+                                               id="subject_{{ subject.id }}" name="managed_subjects" value="{{ subject.id }}"
+                                               {% if user_to_edit.id|string in subject.gestionnaires_ids %}checked{% endif %}>
                                         <label class="form-check-label" for="subject_{{ subject.id }}">
                                             <strong>{{ subject.name }}</strong>
                                             {% if subject.description %}
@@ -139,25 +138,80 @@
                             <div class="form-text">Sélectionnez les sujets que cet invité pourra gérer.</div>
                         </div>
 
-                        <div class="d-flex justify-content-end gap-2">
-                            <a href="/superadmin/users" class="btn btn-secondary">
-                                <i class="bi bi-x-circle me-1"></i>Annuler
-                            </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-person-plus me-1"></i>Créer l'invité
-                            </button>
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <button type="button" class="btn btn-outline-danger" onclick="confirmDeleteUser()">
+                                    <i class="bi bi-trash me-1"></i>Supprimer cet invité
+                                </button>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <a href="/superadmin/users" class="btn btn-secondary">
+                                    <i class="bi bi-x-circle me-1"></i>Annuler
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-check-circle me-1"></i>Enregistrer les modifications
+                                </button>
+                            </div>
                         </div>
                     </form>
+                </div>
+            </div>
+
+            <!-- Informations supplémentaires -->
+            <div class="card shadow mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Informations du compte
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-2">
+                                <strong>ID utilisateur:</strong> 
+                                <code>{{ user_to_edit.id }}</code>
+                            </p>
+                            <p class="mb-2">
+                                <strong>Date de création:</strong> 
+                                {% if user_to_edit.created_at %}
+                                    {{ user_to_edit.created_at.strftime('%d/%m/%Y à %H:%M') }}
+                                {% else %}
+                                    Non disponible
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-2">
+                                <strong>Dernière modification:</strong> 
+                                {% if user_to_edit.updated_at %}
+                                    {{ user_to_edit.updated_at.strftime('%d/%m/%Y à %H:%M') }}
+                                {% else %}
+                                    Non disponible
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Formulaire de suppression caché -->
+<form id="deleteForm" method="post" action="/superadmin/users/{{ user_to_edit.id }}/delete" style="display: none;">
+</form>
+
 <script>
+function confirmDeleteUser() {
+    if (confirm(`Êtes-vous sûr de vouloir supprimer l'invité "{{ user_to_edit.prenom }} {{ user_to_edit.nom }}" ? Cette action est irréversible.`)) {
+        document.getElementById('deleteForm').submit();
+    }
+}
+
 // Validation du formulaire
 document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('addUserForm');
+    const form = document.querySelector('form[action*="/edit"]');
     const roleCheckboxes = document.querySelectorAll('input[name="roles"]');
     const gestionnaireCheckbox = document.getElementById('role_gestionnaire');
     const subjectsSection = document.getElementById('gestionnaire-subjects-section');
@@ -175,6 +229,9 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     }
+    
+    // Initialiser l'affichage au chargement
+    toggleSubjectsSection();
     
     // Écouter les changements sur la checkbox gestionnaire
     gestionnaireCheckbox.addEventListener('change', toggleSubjectsSection);

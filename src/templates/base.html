@@ -200,6 +200,118 @@
             color: white;
             transform: translateX(2px);
         }
+
+        /* Amélioration des dropdowns */
+        .dropdown-menu {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            border: none;
+            border-radius: 0.5rem;
+        }
+
+        .dropdown-header {
+            font-weight: 600;
+            color: #495057;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .dropdown-item {
+            padding: 0.5rem 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .dropdown-item:hover {
+            background: linear-gradient(135deg, rgba(78, 115, 223, 0.1) 0%, rgba(78, 115, 223, 0.05) 100%);
+            transform: translateX(2px);
+        }
+
+        /* Animations pour les métriques */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+
+        /* Amélioration des cartes */
+        .card {
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.1);
+        }
+
+        .hover-lift {
+            transition: all 0.3s ease;
+        }
+
+        .hover-lift:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.15);
+        }
+
+        /* Améliorations des badges */
+        .badge {
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        /* Styles pour les avatars */
+        .avatar-sm {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+        }
+
+        /* Amélioration des boutons */
+        .btn-group .btn {
+            border-radius: 0.25rem;
+            margin-right: 0.25rem;
+        }
+
+        .btn-group .btn:last-child {
+            margin-right: 0;
+        }
+
+        /* Styles pour les tableaux */
+        .table-hover tbody tr:hover {
+            background-color: rgba(78, 115, 223, 0.05);
+            transform: scale(1.01);
+            transition: all 0.3s ease;
+        }
+
+        /* Amélioration des progress bars */
+        .progress {
+            border-radius: 1rem;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            border-radius: 1rem;
+            transition: width 0.6s ease;
+        }
+
+        /* Responsive améliorations */
+        @media (max-width: 768px) {
+            .metrics-card {
+                margin-bottom: 1rem;
+            }
+            
+            .btn-group {
+                display: flex;
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -235,15 +347,28 @@
                                     <li><a class="dropdown-item" href="/superadmin/dashboard">
                                         <i class="bi bi-speedometer2 me-2"></i>Tableau de bord
                                     </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><h6 class="dropdown-header">Gestion des invités</h6></li>
                                     <li><a class="dropdown-item" href="/superadmin/users">
-                                        <i class="bi bi-people me-2"></i>Utilisateurs
+                                        <i class="bi bi-people me-2"></i>Tous les invités
                                     </a></li>
+                                    <li><a class="dropdown-item" href="/superadmin/users/add">
+                                        <i class="bi bi-person-plus me-2"></i>Ajouter un invité
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="/superadmin/users/import">
+                                        <i class="bi bi-upload me-2"></i>Importer des invités
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><h6 class="dropdown-header">Gestion des sujets</h6></li>
                                     <li><a class="dropdown-item" href="/superadmin/subjects">
-                                        <i class="bi bi-collection me-2"></i>Sujets
+                                        <i class="bi bi-collection me-2"></i>Tous les sujets
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="/superadmin/subjects/create">
+                                        <i class="bi bi-plus-circle me-2"></i>Créer un sujet
                                     </a></li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item" href="/superadmin/settings">
-                                        <i class="bi bi-gear me-2"></i>Paramètres
+                                        <i class="bi bi-gear me-2"></i>Paramètres système
                                     </a></li>
                                 </ul>
                             </li>
@@ -257,13 +382,34 @@
                                 </a>
                                 <ul class="dropdown-menu" aria-labelledby="gestionnaireDropdown">
                                     <li><a class="dropdown-item" href="/gestionnaire/dashboard">
-                                        <i class="bi bi-kanban me-2"></i>Tableau de bord
+                                        <i class="bi bi-speedometer2 me-2"></i>Tableau de bord
                                     </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><h6 class="dropdown-header">Gestion des sujets</h6></li>
                                     <li><a class="dropdown-item" href="/gestionnaire/subjects">
-                                        <i class="bi bi-collection me-2"></i>Mes Sujets
+                                        <i class="bi bi-collection me-2"></i>Mes sujets
                                     </a></li>
+                                    <li><a class="dropdown-item" href="/gestionnaire/subject/manage">
+                                        <i class="bi bi-gear me-2"></i>Gestion rapide
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><h6 class="dropdown-header">Gestion des invités</h6></li>
                                     <li><a class="dropdown-item" href="/gestionnaire/users">
-                                        <i class="bi bi-people me-2"></i>Utilisateurs
+                                        <i class="bi bi-people me-2"></i>Invités de mes sujets
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="/gestionnaire/users/manage">
+                                        <i class="bi bi-person-gear me-2"></i>Ajouter/Retirer des invités
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><h6 class="dropdown-header">Contrôles avancés</h6></li>
+                                    <li><a class="dropdown-item" href="/gestionnaire/ideas/bulk">
+                                        <i class="bi bi-pencil-square me-2"></i>Modification en masse
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="/gestionnaire/logs">
+                                        <i class="bi bi-clock-history me-2"></i>Historique et logs
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="/gestionnaire/managers">
+                                        <i class="bi bi-shield-check me-2"></i>Gérer les gestionnaires
                                     </a></li>
                                 </ul>
                             </li>
@@ -273,14 +419,30 @@
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     <i class="bi bi-person-workspace me-1 text-success"></i>
-                                    <span class="fw-semibold">Utilisateur</span>
+                                    <span class="fw-semibold">Invité</span>
                                 </a>
                                 <ul class="dropdown-menu" aria-labelledby="userDropdown">
                                     <li><a class="dropdown-item" href="/user/dashboard">
-                                        <i class="bi bi-person-workspace me-2"></i>Mes Sujets
+                                        <i class="bi bi-speedometer2 me-2"></i>Mon tableau de bord
                                     </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><h6 class="dropdown-header">Mes contributions</h6></li>
                                     <li><a class="dropdown-item" href="/user/ideas">
-                                        <i class="bi bi-lightbulb me-2"></i>Mes Idées
+                                        <i class="bi bi-lightbulb me-2"></i>Mes idées
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="/user/ideas/submit">
+                                        <i class="bi bi-plus-circle me-2"></i>Soumettre une idée
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><h6 class="dropdown-header">Participation</h6></li>
+                                    <li><a class="dropdown-item" href="/user/vote">
+                                        <i class="bi bi-hand-thumbs-up me-2"></i>Sessions de vote
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="/user/subjects">
+                                        <i class="bi bi-collection me-2"></i>Mes sujets
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="/user/subjects/ideas">
+                                        <i class="bi bi-eye me-2"></i>Toutes les idées par sujet
                                     </a></li>
                                 </ul>
                             </li>
@@ -330,7 +492,7 @@
     <!-- Contenu principal -->
     <div class="d-flex">
         {% if current_user and show_sidebar %}
-        <!-- Sidebar pour les utilisateurs connectés -->
+        <!-- Sidebar pour les invités connectés -->
         <div class="sidebar text-white p-3" style="width: 250px;">
             <div class="mb-4">
                 <h6 class="text-uppercase text-light opacity-75 mb-3">Navigation</h6>
@@ -340,7 +502,7 @@
                             <i class="bi bi-speedometer2 me-2"></i>Tableau de bord
                         </a>
                         <a class="nav-link" href="/superadmin/users">
-                            <i class="bi bi-people me-2"></i>Utilisateurs
+                            <i class="bi bi-people me-2"></i>Invités
                         </a>
                         <a class="nav-link" href="/superadmin/subjects">
                             <i class="bi bi-collection me-2"></i>Sujets
@@ -356,7 +518,7 @@
                             <i class="bi bi-collection me-2"></i>Mes Sujets
                         </a>
                         <a class="nav-link" href="/gestionnaire/users">
-                            <i class="bi bi-people me-2"></i>Utilisateurs
+                            <i class="bi bi-people me-2"></i>Invités
                         </a>
                         <a class="nav-link" href="/gestionnaire/dashboard">
                             <i class="bi bi-folder-fill me-2"></i>Sujets managés

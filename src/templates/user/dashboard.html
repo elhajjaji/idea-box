@@ -6,9 +6,9 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h1 class="h3 mb-0 text-gray-800">
-            <i class="bi bi-speedometer2 me-2"></i>Tableau de bord
+            <i class="bi bi-speedometer2 me-2"></i>Mon Tableau de bord
         </h1>
-        <p class="text-muted mb-0">Bonjour {{ current_user.prenom }} {{ current_user.nom }}, bienvenue !</p>
+        <p class="text-muted mb-0">Bonjour {{ current_user.prenom }} {{ current_user.nom }}, voici vos métriques</p>
         {% if current_user.roles %}
         <div class="mt-2">
             {% for role in current_user.roles %}
@@ -20,7 +20,6 @@
         {% endif %}
     </div>
     <div class="d-flex gap-2">
-        <!-- Nouveau bouton d'accès rapide au vote -->
         {% if vote_subjects %}
         <a href="/user/vote" class="btn btn-warning btn-lg pulse-animation">
             <i class="bi bi-hand-thumbs-up me-2"></i>
@@ -56,49 +55,45 @@
 </div>
 {% endif %}
 
-<!-- Métriques Clés -->
+<!-- Métriques principales -->
 <div class="row mb-4">
     <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-primary shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Sujets Assignés</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ user_stats.subjects_count }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="bi bi-collection-fill fa-2x text-gray-300"></i>
-                    </div>
-                </div>
+        <div class="metrics-card">
+            <div class="metric-icon">
+                <i class="bi bi-collection"></i>
             </div>
+            <h3 class="metric-value" data-count="{{ metrics.subjects_count }}">0</h3>
+            <p class="metric-label">Sujets assignés</p>
         </div>
     </div>
     <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-success shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Mes Idées Soumises</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ user_stats.user_ideas_count }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="bi bi-lightbulb-fill fa-2x text-gray-300"></i>
-                    </div>
-                </div>
+        <div class="metrics-card success">
+            <div class="metric-icon">
+                <i class="bi bi-lightbulb"></i>
             </div>
+            <h3 class="metric-value" data-count="{{ metrics.my_ideas }}">0</h3>
+            <p class="metric-label">Mes idées</p>
         </div>
     </div>
     <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-info shadow h-100 py-2 {% if vote_subjects %}clickable-card{% endif %}" 
-             {% if vote_subjects %}onclick="window.location.href='/user/vote'"{% endif %}>
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                            Votes Donnés
-                            {% if vote_subjects %}
-                                <i class="bi bi-hand-thumbs-up text-warning ms-1" title="Cliquez pour voter"></i>
-                            {% endif %}
+        <div class="metrics-card warning">
+            <div class="metric-icon">
+                <i class="bi bi-hand-thumbs-up"></i>
+            </div>
+            <h3 class="metric-value" data-count="{{ metrics.my_votes }}">0</h3>
+            <p class="metric-label">Mes votes</p>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="metrics-card info">
+            <div class="metric-icon">
+                <i class="bi bi-check-circle"></i>
+            </div>
+            <h3 class="metric-value" data-count="{{ metrics.available_votes }}">0</h3>
+            <p class="metric-label">Votes disponibles</p>
+        </div>
+    </div>
+</div>
                         </div>
                         <div class="h5 mb-0 font-weight-bold text-gray-800">{{ user_stats.user_votes_count }}</div>
                         {% if vote_subjects %}
@@ -302,6 +297,125 @@
     </div>
 </div>
 
+<!-- Graphiques des métriques -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="bi bi-bar-chart me-2"></i>Mon activité par sujet
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="userActivityChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="bi bi-pie-chart me-2"></i>Répartition de mes contributions
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container small">
+                    <canvas id="contributionChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Accès rapide aux sujets -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-primary">
+            <i class="bi bi-speedometer2 me-2"></i>Mes sujets - Accès rapide
+        </h6>
+        <a href="/user/ideas" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-lightbulb me-1"></i>Toutes mes idées
+        </a>
+    </div>
+    <div class="card-body">
+        {% if metrics.subjects_data %}
+            <div class="row">
+                {% for subject in metrics.subjects_data %}
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="card border-left-primary h-100">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <h6 class="card-title font-weight-bold">{{ subject.name }}</h6>
+                                    <div class="small text-muted mb-2">
+                                        <span class="badge {% if subject.can_submit %}bg-success{% else %}bg-secondary{% endif %} me-1">
+                                            {% if subject.can_submit %}Émission active{% else %}Émission fermée{% endif %}
+                                        </span>
+                                        {% if subject.can_vote %}
+                                        <span class="badge bg-warning text-dark">Vote actif</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row text-center mb-3">
+                                <div class="col-4">
+                                    <div class="text-primary font-weight-bold">{{ subject.total_ideas }}</div>
+                                    <div class="text-xs text-muted">Total idées</div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="text-success font-weight-bold">{{ subject.my_ideas }}</div>
+                                    <div class="text-xs text-muted">Mes idées</div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="text-warning font-weight-bold">{{ subject.my_votes }}</div>
+                                    <div class="text-xs text-muted">Mes votes</div>
+                                </div>
+                            </div>
+                            
+                            {% if subject.can_vote and subject.available_votes > 0 %}
+                            <div class="progress mb-2" style="height: 8px;">
+                                <div class="progress-bar bg-warning" role="progressbar" 
+                                     style="width: {{ ((subject.my_votes / subject.vote_limit) * 100)|round(1) }}%">
+                                </div>
+                            </div>
+                            <div class="text-center small text-muted mb-2">
+                                {{ subject.available_votes }} vote(s) disponible(s)
+                            </div>
+                            {% endif %}
+                            
+                            <div class="btn-group w-100" role="group">
+                                <a href="/user/subject/{{ subject.id }}/ideas" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i> Voir
+                                </a>
+                                {% if subject.can_submit %}
+                                <a href="/user/subject/{{ subject.id }}/submit" class="btn btn-sm btn-outline-success">
+                                    <i class="bi bi-plus"></i> Idée
+                                </a>
+                                {% endif %}
+                                {% if subject.can_vote and subject.available_votes > 0 %}
+                                <a href="/user/subject/{{ subject.id }}/vote" class="btn btn-sm btn-outline-warning">
+                                    <i class="bi bi-hand-thumbs-up"></i> Voter
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center py-4">
+                <i class="bi bi-collection text-muted" style="font-size: 3rem;"></i>
+                <h5 class="mt-3 text-muted">Aucun sujet assigné</h5>
+                <p class="text-muted">Vous n'avez pas encore de sujets assignés.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
 <style>
 .border-left-primary {
     border-left: 0.25rem solid #4e73df !important;
@@ -370,4 +484,57 @@
     border-width: 2px;
 }
 </style>
+
+<!-- Scripts pour les graphiques -->
+{% include "charts_base.html" %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Données des métriques depuis le backend
+    const userActivityData = {{ metrics.charts.subjects_overview | tojson | safe }};
+    const summaryStats = {{ metrics.charts.summary_stats | tojson | safe }};
+    
+    // Graphique d'activité invité par sujet
+    if (userActivityData.length > 0) {
+        const activityChartData = prepareMultiDatasetChart(userActivityData, 'name', [
+            {
+                label: 'Total idées',
+                key: 'total_ideas',
+                backgroundColor: 'rgba(78, 115, 223, 0.8)',
+                borderColor: 'rgb(78, 115, 223)'
+            },
+            {
+                label: 'Mes idées',
+                key: 'my_ideas',
+                backgroundColor: 'rgba(28, 200, 138, 0.8)',
+                borderColor: 'rgb(28, 200, 138)'
+            },
+            {
+                label: 'Mes votes',
+                key: 'my_votes',
+                backgroundColor: 'rgba(246, 194, 62, 0.8)',
+                borderColor: 'rgb(246, 194, 62)'
+            }
+        ]);
+        
+        createBarChart('userActivityChart', activityChartData, {
+            title: 'Mon activité par sujet'
+        });
+    }
+    
+    // Graphique de répartition des contributions
+    const contributionData = [
+        { label: 'Mes idées', value: summaryStats.my_ideas },
+        { label: 'Mes votes', value: summaryStats.my_votes },
+        { label: 'Idées des autres', value: summaryStats.total_ideas - summaryStats.my_ideas }
+    ];
+    
+    const contributionChartData = prepareChartData(contributionData, 'label', 'value', [
+        chartColors.success,
+        chartColors.warning,
+        chartColors.info
+    ]);
+    
+    createDonutChart('contributionChart', contributionChartData);
+});
+</script>
 {% endblock %}

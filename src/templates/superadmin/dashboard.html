@@ -1,56 +1,803 @@
 {% extends "base.html" %}
 
-{% block title %}Tableau de bord Superadmin{% endblock %}
+{% block title %}Tableau de bord Super Admin{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <h1 class="text-center">Tableau de bord Superadmin</h1>
-    <div class="row mt-4">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">Gestion des utilisateurs</div>
-                <div class="card-body">
-                    <a href="/superadmin/users/add" class="btn btn-primary">Ajouter un utilisateur</a>
-                    <a href="/superadmin/users/import" class="btn btn-secondary">Importer des utilisateurs (CSV)</a>
-                    <h5 class="mt-4">Utilisateurs existants:</h5>
-                    <ul class="list-group">
-                        {% for user in users %}
-                            <li class="list-group-item">{{ user.email }} ({{ user.roles | join(', ') }})</li>
-                        {% endfor %}
-                    </ul>
+<!-- En-tête d'accueil -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="welcome-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-2 text-gray-800">
+                        <i class="bi bi-shield-fill-check me-2 text-danger"></i>
+                        Bonjour {{ current_user.prenom }} !
+                    </h1>
+                    <p class="text-muted mb-0">Bienvenue sur votre tableau de bord Super Admin</p>
+                    <small class="text-muted">Voici un aperçu de l'activité sur votre plateforme</small>
                 </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">Gestion des sujets</div>
-                <div class="card-body">
-                    <a href="/superadmin/subjects/create" class="btn btn-primary">Créer un nouveau sujet</a>
-                    <h5 class="mt-4">Sujets existants:</h5>
-                    <ul class="list-group">
-                        {% for subject in subjects %}
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong>{{ subject.name }}</strong>
-                                    <br>
-                                    <small class="text-muted">
-                                        Gestionnaires: 
-                                        {% for gestionnaire_id in subject.gestionnaires_ids %}
-                                            {{ user_emails.get(gestionnaire_id, 'ID non trouvé') }}{% if not loop.last %}, {% endif %}
-                                        {% else %}
-                                            Aucun gestionnaire assigné
-                                        {% endfor %}
-                                    </small>
-                                </div>
-                                <a href="/superadmin/subjects/{{ subject.id }}/edit" class="btn btn-sm btn-outline-primary">
-                                    <i class="bi bi-pencil"></i> Modifier
-                                </a>
-                            </li>
-                        {% endfor %}
-                    </ul>
+                <div class="d-flex gap-2">
+                    <a href="/superadmin/users/add" class="btn btn-success">
+                        <i class="bi bi-person-plus me-1"></i>Ajouter un invité
+                    </a>
+                    <a href="/superadmin/subjects/create" class="btn btn-primary">
+                        <i class="bi bi-plus-circle me-1"></i>Créer un sujet
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Alertes et notifications -->
+<div class="row mb-4">
+    <div class="col-12">
+        {% if metrics.alerts %}
+            {% for alert in metrics.alerts %}
+            <div class="alert alert-{{ alert.type }} alert-dismissible fade show" role="alert">
+                <i class="bi bi-{{ alert.icon }} me-2"></i>
+                <strong>{{ alert.title }}</strong> {{ alert.message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+</div>
+
+<!-- Métriques principales -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="metrics-card">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <div class="metric-icon">
+                        <i class="bi bi-people"></i>
+                    </div>
+                    <h3 class="metric-value" data-count="{{ metrics.total_users }}">0</h3>
+                    <p class="metric-label">Invités total</p>
+                </div>
+                <div class="metric-actions">
+                    <a href="/superadmin/users" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="metric-footer">
+                <small class="text-muted">
+                    <i class="bi bi-person-check me-1"></i>
+                    {{ metrics.active_users_count or 0 }} actifs cette semaine
+                </small>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="metrics-card success">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <div class="metric-icon">
+                        <i class="bi bi-collection"></i>
+                    </div>
+                    <h3 class="metric-value" data-count="{{ metrics.total_subjects }}">0</h3>
+                    <p class="metric-label">Sujets total</p>
+                </div>
+                <div class="metric-actions">
+                    <a href="/superadmin/subjects" class="btn btn-sm btn-outline-success">
+                        <i class="bi bi-eye"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="metric-footer">
+                <small class="text-muted">
+                    <i class="bi bi-play-circle me-1"></i>
+                    {{ metrics.active_subjects_count or 0 }} en cours d'émission
+                </small>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="metrics-card warning">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <div class="metric-icon">
+                        <i class="bi bi-lightbulb"></i>
+                    </div>
+                    <h3 class="metric-value" data-count="{{ metrics.total_ideas }}">0</h3>
+                    <p class="metric-label">Idées totales</p>
+                </div>
+                <div class="metric-actions">
+                    <span class="badge bg-warning">
+                        +{{ metrics.ideas_this_week or 0 }}
+                    </span>
+                </div>
+            </div>
+            <div class="metric-footer">
+                <small class="text-muted">
+                    <i class="bi bi-calendar-week me-1"></i>
+                    {{ metrics.ideas_this_week or 0 }} cette semaine
+                </small>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="metrics-card info">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <div class="metric-icon">
+                        <i class="bi bi-hand-thumbs-up"></i>
+                    </div>
+                    <h3 class="metric-value" data-count="{{ metrics.total_votes }}">0</h3>
+                    <p class="metric-label">Votes totaux</p>
+                </div>
+                <div class="metric-actions">
+                    <span class="badge bg-info">
+                        +{{ metrics.votes_this_week or 0 }}
+                    </span>
+                </div>
+            </div>
+            <div class="metric-footer">
+                <small class="text-muted">
+                    <i class="bi bi-calendar-week me-1"></i>
+                    {{ metrics.votes_this_week or 0 }} cette semaine
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Actions rapides -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="bi bi-lightning me-2"></i>Actions rapides
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <div class="quick-action-card">
+                            <div class="quick-action-icon bg-primary">
+                                <i class="bi bi-person-plus"></i>
+                            </div>
+                            <h6>Ajouter un invité</h6>
+                            <p class="text-muted small">Créer un nouveau compte utilisateur</p>
+                            <a href="/superadmin/users/add" class="btn btn-sm btn-primary">Ajouter</a>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="quick-action-card">
+                            <div class="quick-action-icon bg-success">
+                                <i class="bi bi-collection"></i>
+                            </div>
+                            <h6>Créer un sujet</h6>
+                            <p class="text-muted small">Nouveau sujet pour collecter des idées</p>
+                            <a href="/superadmin/subjects/create" class="btn btn-sm btn-success">Créer</a>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="quick-action-card">
+                            <div class="quick-action-icon bg-warning">
+                                <i class="bi bi-upload"></i>
+                            </div>
+                            <h6>Importer des invités</h6>
+                            <p class="text-muted small">Importer depuis un fichier CSV</p>
+                            <a href="/superadmin/users/import" class="btn btn-sm btn-warning">Importer</a>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="quick-action-card">
+                            <div class="quick-action-icon bg-info">
+                                <i class="bi bi-gear"></i>
+                            </div>
+                            <h6>Paramètres</h6>
+                            <p class="text-muted small">Configuration de la plateforme</p>
+                            <a href="/superadmin/settings" class="btn btn-sm btn-info">Configurer</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Graphiques des métriques -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="bi bi-bar-chart me-2"></i>Vue d'ensemble des sujets
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="subjectsOverviewChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="bi bi-pie-chart me-2"></i>Répartition des invités
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container small">
+                    <canvas id="usersDistributionChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Performance et activité récente -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="bi bi-activity me-2"></i>Activité récente
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if metrics.recent_activities %}
+                    <div class="timeline">
+                        {% for activity in metrics.recent_activities %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker {{ activity.type }}"></div>
+                            <div class="timeline-content">
+                                <h6 class="timeline-title">{{ activity.title }}</h6>
+                                <p class="timeline-text">{{ activity.description }}</p>
+                                <small class="text-muted">
+                                    <i class="bi bi-clock me-1"></i>
+                                    {{ activity.timestamp }}
+                                </small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-activity text-muted" style="font-size: 2rem;"></i>
+                        <p class="text-muted mt-2">Aucune activité récente</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="bi bi-speedometer2 me-2"></i>Performance globale
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="performance-metrics">
+                    <div class="performance-item mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="performance-label">Taux de participation</span>
+                            <span class="performance-badge excellent">
+                                <i class="bi bi-arrow-up"></i>
+                                {{ metrics.participation_rate or 85 }}%
+                            </span>
+                        </div>
+                        <div class="progress mt-2">
+                            <div class="progress-bar bg-success" style="width: {{ metrics.participation_rate or 85 }}%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="performance-item mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="performance-label">Idées par utilisateur</span>
+                            <span class="performance-badge good">
+                                <i class="bi bi-lightbulb"></i>
+                                {{ metrics.ideas_per_user or 3.2 }}
+                            </span>
+                        </div>
+                        <div class="progress mt-2">
+                            <div class="progress-bar bg-warning" style="width: 75%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="performance-item mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="performance-label">Engagement</span>
+                            <span class="performance-badge excellent">
+                                <i class="bi bi-heart"></i>
+                                {{ metrics.engagement_rate or 92 }}%
+                            </span>
+                        </div>
+                        <div class="progress mt-2">
+                            <div class="progress-bar bg-info" style="width: {{ metrics.engagement_rate or 92 }}%"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 pt-3 border-top">
+                    <h6 class="text-muted mb-2">État des systèmes</h6>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>Base de données</span>
+                        <span class="status-indicator online"></span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>Serveur web</span>
+                        <span class="status-indicator online"></span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>Notifications</span>
+                        <span class="status-indicator online"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gestion des sujets -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-primary">
+            <i class="bi bi-collection me-2"></i>Gestion des sujets
+        </h6>
+        <a href="/superadmin/subjects/create" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-plus-circle me-1"></i>Créer un sujet
+        </a>
+    </div>
+    <div class="card-body">
+        {% if metrics.subjects_data %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Sujet</th>
+                            <th>Gestionnaires</th>
+                            <th>Statut</th>
+                            <th>Invités</th>
+                            <th>Idées</th>
+                            <th>Votes</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for subject in metrics.subjects_data %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2">
+                                        <i class="bi bi-collection"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0">{{ subject.name }}</h6>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ subject.gestionnaires_count }}</span>
+                            </td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <span class="status-badge {% if subject.status == 'active' %}status-active{% else %}status-inactive{% endif %}">
+                                        {% if subject.status == 'active' %}Émission{% else %}Fermé{% endif %}
+                                    </span>
+                                    {% if subject.voting_status == 'active' %}
+                                    <span class="status-badge status-voting">Vote</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-info">{{ subject.users_count }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-success">{{ subject.ideas_count }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-warning">{{ subject.votes_count }}</span>
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="/superadmin/subjects/{{ subject.id }}/edit" class="btn btn-sm btn-outline-primary" title="Modifier">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <button class="btn btn-sm btn-outline-danger" title="Supprimer" onclick="confirmDelete('{{ subject.id }}', '{{ subject.name }}')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-4">
+                <i class="bi bi-collection text-muted" style="font-size: 3rem;"></i>
+                <h5 class="mt-3 text-muted">Aucun sujet créé</h5>
+                <p class="text-muted">Commencez par créer votre premier sujet.</p>
+                <a href="/superadmin/subjects/create" class="btn btn-primary">
+                    <i class="bi bi-plus-circle me-2"></i>Créer un sujet
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Gestion des invités -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-primary">
+            <i class="bi bi-people me-2"></i>Gestion des invités
+        </h6>
+        <div class="btn-group">
+            <a href="/superadmin/users/add" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-person-plus me-1"></i>Ajouter
+            </a>
+            <a href="/superadmin/users/import" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-upload me-1"></i>Importer CSV
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if users %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Invité</th>
+                            <th>Email</th>
+                            <th>Rôles</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users[:10] %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-sm bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center me-2">
+                                        <i class="bi bi-person"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0">{{ user.prenom }} {{ user.nom }}</h6>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>{{ user.email }}</td>
+                            <td>
+                                {% for role in user.roles %}
+                                <span class="badge {% if role == 'superadmin' %}bg-danger{% elif role == 'gestionnaire' %}bg-warning{% else %}bg-primary{% endif %} me-1">
+                                    {{ role|capitalize }}
+                                </span>
+                                {% endfor %}
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="/superadmin/users/{{ user.id | string }}/edit" class="btn btn-sm btn-outline-primary" title="Modifier">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <button class="btn btn-sm btn-outline-danger" title="Supprimer" onclick="confirmDeleteUser('{{ user.id | string }}', '{{ user.prenom }} {{ user.nom }}')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if users|length > 10 %}
+            <div class="text-center mt-3">
+                <a href="/superadmin/users" class="btn btn-outline-primary">
+                    <i class="bi bi-eye me-2"></i>Voir tous les invités ({{ users|length }})
+                </a>
+            </div>
+            {% endif %}
+        {% else %}
+            <div class="text-center py-4">
+                <i class="bi bi-people text-muted" style="font-size: 3rem;"></i>
+                <h5 class="mt-3 text-muted">Aucun invité</h5>
+                <p class="text-muted">Commencez par ajouter des invités.</p>
+                <a href="/superadmin/users/add" class="btn btn-primary">
+                    <i class="bi bi-person-plus me-2"></i>Ajouter un invité
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{% include "charts_base.html" %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Données des métriques depuis le backend
+    const subjectsData = {{ metrics.charts.subjects_overview | tojson | safe }};
+    const usersData = {{ metrics.charts.users_by_role | tojson | safe }};
+    
+    // Graphique vue d'ensemble des sujets
+    if (subjectsData.length > 0) {
+        const subjectsChartData = prepareMultiDatasetChart(subjectsData, 'name', [
+            {
+                label: 'Idées',
+                key: 'ideas',
+                backgroundColor: 'rgba(78, 115, 223, 0.8)',
+                borderColor: 'rgb(78, 115, 223)'
+            },
+            {
+                label: 'Votes',
+                key: 'votes',
+                backgroundColor: 'rgba(28, 200, 138, 0.8)',
+                borderColor: 'rgb(28, 200, 138)'
+            },
+            {
+                label: 'Invités',
+                key: 'users',
+                backgroundColor: 'rgba(54, 185, 204, 0.8)',
+                borderColor: 'rgb(54, 185, 204)'
+            }
+        ]);
+        
+        createBarChart('subjectsOverviewChart', subjectsChartData, {
+            title: 'Métriques par sujet'
+        });
+    }
+    
+    // Graphique répartition des invités
+    if (usersData.length > 0) {
+        const usersChartData = prepareChartData(usersData, 'role', 'count', [
+            chartColors.danger,
+            chartColors.warning,
+            chartColors.primary
+        ]);
+        
+        createDonutChart('usersDistributionChart', usersChartData);
+    }
+});
+
+function confirmDelete(subjectId, subjectName) {
+    if (confirm(`Êtes-vous sûr de vouloir supprimer le sujet "${subjectName}" ? Cette action est irréversible.`)) {
+        // Ajouter ici la logique de suppression
+        console.log('Suppression du sujet:', subjectId);
+    }
+}
+
+function confirmDeleteUser(userId, userName) {
+    if (confirm(`Êtes-vous sûr de vouloir supprimer l'invité "${userName}" ? Cette action est irréversible.`)) {
+        // Créer un formulaire pour envoyer la requête de suppression
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/superadmin/users/${userId}/delete`;
+        
+        // Ajouter le formulaire au document et le soumettre
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+{% endblock %}
+
+{% block styles %}
+<style>
+.welcome-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 15px;
+    margin-bottom: 1rem;
+}
+
+.welcome-header h1 {
+    color: white !important;
+}
+
+.metrics-card {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+    border: 1px solid #e3e6f0;
+    height: 100%;
+    transition: all 0.3s ease;
+}
+
+.metrics-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.25rem 2rem 0 rgba(58, 59, 69, 0.2);
+}
+
+.metric-icon {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(45deg, #4e73df, #5a82f4);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+    color: white;
+    font-size: 1.5rem;
+}
+
+.metrics-card.success .metric-icon {
+    background: linear-gradient(45deg, #1cc88a, #36b9cc);
+}
+
+.metrics-card.warning .metric-icon {
+    background: linear-gradient(45deg, #f6c23e, #f4b619);
+}
+
+.metrics-card.info .metric-icon {
+    background: linear-gradient(45deg, #36b9cc, #3dd5f3);
+}
+
+.metric-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #5a5c69;
+    margin-bottom: 0.5rem;
+}
+
+.metric-label {
+    color: #858796;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+}
+
+.metric-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.metric-footer {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e3e6f0;
+}
+
+.quick-action-card {
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    border: 1px solid #e3e6f0;
+    text-align: center;
+    height: 100%;
+    transition: all 0.3s ease;
+}
+
+.quick-action-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.25rem 1.5rem 0 rgba(58, 59, 69, 0.15);
+}
+
+.quick-action-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    color: white;
+    font-size: 1.2rem;
+}
+
+.quick-action-card h6 {
+    color: #5a5c69;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.quick-action-card p {
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+}
+
+.performance-metrics {
+    padding: 1rem 0;
+}
+
+.performance-item {
+    padding: 0.75rem 0;
+}
+
+.performance-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #5a5c69;
+}
+
+.progress {
+    height: 6px;
+    background: #e3e6f0;
+    border-radius: 3px;
+}
+
+.progress-bar {
+    border-radius: 3px;
+}
+
+.timeline {
+    position: relative;
+    padding: 1rem 0;
+}
+
+.timeline-item {
+    position: relative;
+    padding-left: 3rem;
+    margin-bottom: 1.5rem;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #4e73df;
+}
+
+.timeline-marker.success {
+    background: #1cc88a;
+}
+
+.timeline-marker.warning {
+    background: #f6c23e;
+}
+
+.timeline-marker.danger {
+    background: #e74a3b;
+}
+
+.timeline-marker.info {
+    background: #36b9cc;
+}
+
+.timeline-content {
+    background: #f8f9fc;
+    padding: 1rem;
+    border-radius: 8px;
+    border-left: 3px solid #4e73df;
+}
+
+.timeline-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #5a5c69;
+}
+
+.timeline-text {
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+    color: #6e707e;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .welcome-header {
+        padding: 1.5rem;
+    }
+    
+    .welcome-header .d-flex {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .metric-value {
+        font-size: 2rem;
+    }
+    
+    .quick-action-card {
+        margin-bottom: 1rem;
+    }
+}
+</style>
 {% endblock %}

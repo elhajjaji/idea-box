@@ -12,6 +12,7 @@ from src.models.subject import Subject
 from src.services.auth_service import get_current_user, get_password_hash
 from src.services.user_service import create_user, get_users, add_role_to_user, remove_role_from_user
 from src.services.database import Database
+from src.services.metrics_service import MetricsService
 
 router = APIRouter()
 
@@ -27,6 +28,9 @@ async def get_current_superadmin(request: Request, current_user: User = Depends(
 
 @router.get("/superadmin/dashboard", response_class=HTMLResponse)
 async def superadmin_dashboard(request: Request, current_user: User = Depends(get_current_superadmin)):
+    # Récupérer les métriques pour le superadmin
+    metrics = await MetricsService.get_superadmin_dashboard_metrics()
+    
     users = await get_users()
     subjects = await Database.engine.find(Subject)
     # Create a new list of subjects with string IDs
@@ -36,22 +40,96 @@ async def superadmin_dashboard(request: Request, current_user: User = Depends(ge
         subject_dict["id"] = str(subject.id)
         subjects_for_template.append(subject_dict)
     user_emails = {str(user.id): user.email for user in users}
-    return templates.TemplateResponse("superadmin/dashboard.html", {"request": request, "users": users, "subjects": subjects_for_template, "current_user": current_user, "user_emails": user_emails, "show_sidebar": True})
+    
+    return templates.TemplateResponse("superadmin/dashboard.html", {
+        "request": request, 
+        "users": users, 
+        "subjects": subjects_for_template, 
+        "current_user": current_user, 
+        "user_emails": user_emails, 
+        "metrics": metrics,
+        "show_sidebar": True
+    })
 
 @router.get("/superadmin/users/add", response_class=HTMLResponse)
 async def add_user_form(request: Request, current_user: User = Depends(get_current_superadmin)):
-    return templates.TemplateResponse("superadmin/add_user.html", {"request": request, "current_user": current_user, "show_sidebar": True})
+    # Récupérer tous les sujets pour les afficher dans le formulaire
+    subjects = await Database.engine.find(Subject)
+    subjects_for_template = []
+    for subject in subjects:
+        subject_dict = subject.dict()
+        subject_dict["id"] = str(subject.id)
+        subjects_for_template.append(subject_dict)
+    
+    return templates.TemplateResponse("superadmin/add_user.html", {
+        "request": request, 
+        "current_user": current_user, 
+        "subjects": subjects_for_template,
+        "show_sidebar": True
+    })
 
 @router.post("/superadmin/users/add", response_class=HTMLResponse)
-async def add_user(request: Request, email: str = Form(...), nom: str = Form(...), prenom: str = Form(...), password: str = Form(...), current_user: User = Depends(get_current_superadmin)):
-    existing_user = await Database.engine.find_one(User, User.email == email)
-    if existing_user:
-        return templates.TemplateResponse("superadmin/add_user.html", {"request": request, "error": "Cet email est déjà enregistré."})
+async def add_user(
+    request: Request, 
+    email: str = Form(...), 
+    nom: str = Form(...), 
+    prenom: str = Form(...), 
+    password: str = Form(...),
+    roles: List[str] = Form(default=["user"]),
+    managed_subjects: List[str] = Form(default=[]),
+    current_user: User = Depends(get_current_superadmin)
+):
+    try:
+        # Vérifier que l'email n'est pas déjà utilisé
+        existing_user = await Database.engine.find_one(User, User.email == email)
+        if existing_user:
+            from src.utils.flash_messages import flash
+            flash(request, "Cette adresse email est déjà utilisée.", "error")
+            return RedirectResponse(url="/superadmin/users/add", status_code=303)
 
-    hashed_password = get_password_hash(password)
-    user = User(email=email, nom=nom, prenom=prenom, pwd=hashed_password)
-    await create_user(user)
-    return templates.TemplateResponse("superadmin/add_user.html", {"request": request, "message": "Utilisateur ajouté avec succès !"})
+        # Validation: si gestionnaire est sélectionné, au moins un sujet doit être assigné
+        if "gestionnaire" in roles and not managed_subjects:
+            from src.utils.flash_messages import flash
+            flash(request, "Un gestionnaire doit avoir au moins un sujet assigné.", "error")
+            return RedirectResponse(url="/superadmin/users/add", status_code=303)
+
+        # Créer l'utilisateur
+        hashed_password = get_password_hash(password)
+        user = User(
+            email=email.strip().lower(),
+            nom=nom.strip(),
+            prenom=prenom.strip(),
+            pwd=hashed_password,
+            roles=roles
+        )
+        await create_user(user)
+        
+        # Si l'utilisateur est gestionnaire, l'ajouter aux sujets sélectionnés
+        if "gestionnaire" in roles and managed_subjects:
+            user_id = str(user.id)
+            for subject_id in managed_subjects:
+                try:
+                    subject = await Database.engine.find_one(Subject, Subject.id == ObjectId(subject_id))
+                    if subject:
+                        # Ajouter l'utilisateur comme gestionnaire du sujet
+                        if user_id not in subject.gestionnaires_ids:
+                            subject.gestionnaires_ids.append(user_id)
+                        # Ajouter aussi l'utilisateur aux utilisateurs du sujet
+                        if user_id not in subject.users_ids:
+                            subject.users_ids.append(user_id)
+                        await Database.engine.save(subject)
+                except Exception as e:
+                    print(f"❌ Erreur lors de l'ajout du gestionnaire au sujet {subject_id}: {e}")
+
+        from src.utils.flash_messages import flash
+        flash(request, f"L'invité {prenom} {nom} a été créé avec succès.", "success")
+        return RedirectResponse(url="/superadmin/users", status_code=303)
+        
+    except Exception as e:
+        print(f"❌ Erreur lors de la création de l'utilisateur: {e}")
+        from src.utils.flash_messages import flash
+        flash(request, "Erreur lors de la création de l'utilisateur.", "error")
+        return RedirectResponse(url="/superadmin/users/add", status_code=303)
 
 @router.get("/superadmin/users/import", response_class=HTMLResponse)
 async def import_users_form(request: Request, current_user: User = Depends(get_current_superadmin)):
@@ -199,3 +277,161 @@ async def superadmin_subjects(request: Request, current_user: User = Depends(get
 @router.get("/superadmin/settings", response_class=HTMLResponse)
 async def superadmin_settings(request: Request, current_user: User = Depends(get_current_superadmin)):
     return templates.TemplateResponse("superadmin/settings.html", {"request": request, "current_user": current_user, "show_sidebar": True})
+
+@router.get("/superadmin/users/{user_id}/edit", response_class=HTMLResponse)
+async def edit_user_form(user_id: str, request: Request, current_user: User = Depends(get_current_superadmin)):
+    """Formulaire de modification d'un utilisateur"""
+    try:
+        # Convertir l'ID string en ObjectId
+        user_to_edit = await Database.engine.find_one(User, User.id == ObjectId(user_id))
+        if not user_to_edit:
+            raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+        
+        # Récupérer tous les sujets pour les afficher dans le formulaire
+        subjects = await Database.engine.find(Subject)
+        subjects_for_template = []
+        for subject in subjects:
+            subject_dict = subject.dict()
+            subject_dict["id"] = str(subject.id)
+            subjects_for_template.append(subject_dict)
+        
+        return templates.TemplateResponse("superadmin/edit_user.html", {
+            "request": request,
+            "current_user": current_user,
+            "user_to_edit": user_to_edit,
+            "subjects": subjects_for_template,
+            "show_sidebar": True
+        })
+    except Exception as e:
+        print(f"❌ Erreur lors de la récupération de l'utilisateur: {e}")
+        return RedirectResponse(url="/superadmin/users", status_code=303)
+
+@router.post("/superadmin/users/{user_id}/edit")
+async def edit_user(
+    user_id: str,
+    request: Request,
+    nom: str = Form(...),
+    prenom: str = Form(...),
+    email: str = Form(...),
+    roles: List[str] = Form(default=[]),
+    managed_subjects: List[str] = Form(default=[]),
+    current_user: User = Depends(get_current_superadmin)
+):
+    """Modifier un utilisateur existant"""
+    try:
+        # Convertir l'ID string en ObjectId
+        user_to_edit = await Database.engine.find_one(User, User.id == ObjectId(user_id))
+        if not user_to_edit:
+            raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+        
+        # Vérifier que l'email n'est pas déjà utilisé par un autre utilisateur
+        existing_user = await Database.engine.find_one(User, User.email == email)
+        if existing_user and str(existing_user.id) != user_id:
+            from src.utils.flash_messages import flash
+            flash(request, "Cette adresse email est déjà utilisée par un autre utilisateur.", "error")
+            return RedirectResponse(url=f"/superadmin/users/{user_id}/edit", status_code=303)
+
+        # Validation: si gestionnaire est sélectionné, au moins un sujet doit être assigné
+        if "gestionnaire" in roles and not managed_subjects:
+            from src.utils.flash_messages import flash
+            flash(request, "Un gestionnaire doit avoir au moins un sujet assigné.", "error")
+            return RedirectResponse(url=f"/superadmin/users/{user_id}/edit", status_code=303)
+
+        # Récupérer tous les sujets pour gérer les changements
+        all_subjects = await Database.engine.find(Subject)
+        
+        # Retirer l'utilisateur de tous les sujets où il était gestionnaire
+        for subject in all_subjects:
+            if user_id in subject.gestionnaires_ids:
+                subject.gestionnaires_ids.remove(user_id)
+                await Database.engine.save(subject)
+        
+        # Ajouter l'utilisateur comme gestionnaire des nouveaux sujets sélectionnés
+        if "gestionnaire" in roles and managed_subjects:
+            for subject_id in managed_subjects:
+                try:
+                    subject = await Database.engine.find_one(Subject, Subject.id == ObjectId(subject_id))
+                    if subject:
+                        # Ajouter l'utilisateur comme gestionnaire du sujet
+                        if user_id not in subject.gestionnaires_ids:
+                            subject.gestionnaires_ids.append(user_id)
+                        # Ajouter aussi l'utilisateur aux utilisateurs du sujet
+                        if user_id not in subject.users_ids:
+                            subject.users_ids.append(user_id)
+                        await Database.engine.save(subject)
+                except Exception as e:
+                    print(f"❌ Erreur lors de l'ajout du gestionnaire au sujet {subject_id}: {e}")
+        
+        # Mettre à jour les informations de l'utilisateur
+        user_to_edit.nom = nom.strip()
+        user_to_edit.prenom = prenom.strip()
+        user_to_edit.email = email.strip().lower()
+        user_to_edit.roles = roles if roles else ["user"]
+        
+        # Sauvegarder les modifications
+        await Database.engine.save(user_to_edit)
+        
+        from src.utils.flash_messages import flash
+        flash(request, f"L'utilisateur {prenom} {nom} a été modifié avec succès.", "success")
+        return RedirectResponse(url="/superadmin/users", status_code=303)
+        
+    except Exception as e:
+        print(f"❌ Erreur lors de la modification de l'utilisateur: {e}")
+        from src.utils.flash_messages import flash
+        flash(request, "Erreur lors de la modification de l'utilisateur.", "error")
+        return RedirectResponse(url="/superadmin/users", status_code=303)
+
+@router.post("/superadmin/users/{user_id}/delete")
+async def delete_user(
+    user_id: str,
+    request: Request,
+    current_user: User = Depends(get_current_superadmin)
+):
+    """Supprimer un utilisateur"""
+    try:
+        # Convertir l'ID string en ObjectId
+        user_to_delete = await Database.engine.find_one(User, User.id == ObjectId(user_id))
+        if not user_to_delete:
+            raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+        
+        # Vérifier qu'on ne supprime pas le dernier superadmin
+        if "superadmin" in user_to_delete.roles:
+            all_superadmins = await Database.engine.find(User, {"roles": {"$in": ["superadmin"]}})
+            if len(all_superadmins) <= 1:
+                from src.utils.flash_messages import flash
+                flash(request, "Impossible de supprimer le dernier super administrateur.", "error")
+                return RedirectResponse(url="/superadmin/users", status_code=303)
+        
+        # Vérifier qu'on ne supprime pas soi-même
+        if str(user_to_delete.id) == str(current_user.id):
+            from src.utils.flash_messages import flash
+            flash(request, "Vous ne pouvez pas supprimer votre propre compte.", "error")
+            return RedirectResponse(url="/superadmin/users", status_code=303)
+        
+        # Retirer l'utilisateur de tous les sujets
+        subjects = await Database.engine.find(Subject)
+        for subject in subjects:
+            if user_id in subject.users_ids:
+                subject.users_ids.remove(user_id)
+                await Database.engine.save(subject)
+            if user_id in subject.gestionnaires_ids:
+                # Si c'est le dernier gestionnaire du sujet, on ne peut pas le supprimer
+                if len(subject.gestionnaires_ids) <= 1:
+                    from src.utils.flash_messages import flash
+                    flash(request, f"Impossible de supprimer l'utilisateur car il est le dernier gestionnaire du sujet '{subject.name}'.", "error")
+                    return RedirectResponse(url="/superadmin/users", status_code=303)
+                subject.gestionnaires_ids.remove(user_id)
+                await Database.engine.save(subject)
+        
+        # Supprimer l'utilisateur
+        await Database.engine.delete(user_to_delete)
+        
+        from src.utils.flash_messages import flash
+        flash(request, f"L'utilisateur {user_to_delete.prenom} {user_to_delete.nom} a été supprimé avec succès.", "success")
+        return RedirectResponse(url="/superadmin/users", status_code=303)
+        
+    except Exception as e:
+        print(f"❌ Erreur lors de la suppression de l'utilisateur: {e}")
+        from src.utils.flash_messages import flash
+        flash(request, "Erreur lors de la suppression de l'utilisateur.", "error")
+        return RedirectResponse(url="/superadmin/users", status_code=303)
