@@ -145,20 +145,22 @@ async def user_vote_center(request: Request, current_user: User = Depends(get_cu
         # Récupérer les votes récents (optionnel)
         recent_votes = []  # Vous pouvez implémenter cette fonctionnalité plus tard
         
-        return templates.TemplateResponse("user/vote.html", {
+        from src.utils.template_helpers import add_organization_context
+        context = await add_organization_context({
             "request": request,
             "current_user": current_user,
             "vote_subjects": vote_subjects,
             "user_votes_count": user_votes_count,
             "total_ideas_count": total_ideas_count,
             "user_votes_for_subject": user_votes_for_subject,
-            "recent_votes": recent_votes,
-            "show_sidebar": True
+            "recent_votes": recent_votes
         })
+        return templates.TemplateResponse("user/vote.html", context)
     
     except Exception as e:
         print(f"❌ Erreur centre de vote: {e}")
-        return templates.TemplateResponse("user/vote.html", {
+        from src.utils.template_helpers import add_organization_context
+        context = await add_organization_context({
             "request": request,
             "current_user": current_user,
             "vote_subjects": [],
@@ -166,9 +168,9 @@ async def user_vote_center(request: Request, current_user: User = Depends(get_cu
             "total_ideas_count": 0,
             "user_votes_for_subject": {},
             "recent_votes": [],
-            "show_sidebar": True,
             "error": "Erreur lors du chargement du centre de vote"
         })
+        return templates.TemplateResponse("user/vote.html", context)
 
 @router.get("/user/subject/{subject_id}/ideas", response_class=HTMLResponse)
 async def subject_ideas(subject_id: str, request: Request, current_user: User = Depends(get_current_normal_user)):
@@ -178,7 +180,15 @@ async def subject_ideas(subject_id: str, request: Request, current_user: User = 
     if not subject or (str(current_user.id) not in subject.users_ids and str(current_user.id) not in subject.gestionnaires_ids):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sujet non trouvé ou vous n'êtes pas attribué à ce sujet.")
     ideas = await get_ideas_by_subject(subject_id)
-    return templates.TemplateResponse("user/subject_ideas.html", {"request": request, "subject": subject, "ideas": ideas, "current_user": current_user, "show_sidebar": True})
+    
+    from src.utils.template_helpers import add_organization_context
+    context = await add_organization_context({
+        "request": request, 
+        "subject": subject, 
+        "ideas": ideas, 
+        "current_user": current_user
+    })
+    return templates.TemplateResponse("user/subject_ideas.html", context)
 
 @router.post("/user/subject/{subject_id}/ideas/create", response_class=HTMLResponse)
 async def create_new_idea(subject_id: str, request: Request, title: str = Form(...), description: Optional[str] = Form(None), current_user: User = Depends(get_current_normal_user)):
@@ -187,7 +197,15 @@ async def create_new_idea(subject_id: str, request: Request, title: str = Form(.
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sujet non trouvé ou vous n'êtes pas attribué à ce sujet.")
     
     if not subject.emission_active:
-        return templates.TemplateResponse("user/subject_ideas.html", {"request": request, "subject": subject, "ideas": await get_ideas_by_subject(subject_id), "current_user": current_user, "error": "L'émission d'idées n'est pas active pour ce sujet.", "show_sidebar": True})
+        from src.utils.template_helpers import add_organization_context
+        context = await add_organization_context({
+            "request": request, 
+            "subject": subject, 
+            "ideas": await get_ideas_by_subject(subject_id), 
+            "current_user": current_user, 
+            "error": "L'émission d'idées n'est pas active pour ce sujet."
+        })
+        return templates.TemplateResponse("user/subject_ideas.html", context)
 
     idea = Idea(subject_id=subject_id, user_id=str(current_user.id), title=title, description=description)
     await create_idea(idea)
@@ -210,7 +228,14 @@ async def user_ideas(request: Request, current_user: User = Depends(get_current_
             "created_at": idea.created_at,
             "subject_name": subject_name
         })
-    return templates.TemplateResponse("user/my_ideas.html", {"request": request, "ideas": ideas_with_subject, "current_user": current_user, "show_sidebar": True})
+    
+    from src.utils.template_helpers import add_organization_context
+    context = await add_organization_context({
+        "request": request, 
+        "ideas": ideas_with_subject, 
+        "current_user": current_user
+    })
+    return templates.TemplateResponse("user/my_ideas.html", context)
 
 @router.post("/user/idea/{idea_id}/vote")
 async def vote_idea(
@@ -299,7 +324,12 @@ async def choose_role(request: Request, current_user: User = Depends(get_current
         else:
             return RedirectResponse(url="/user/dashboard", status_code=status.HTTP_303_SEE_OTHER)
     # Sinon, affiche le choix de rôle
-    return templates.TemplateResponse("choose_role.html", {"request": request, "roles": current_user.roles})
+    from src.utils.template_helpers import add_organization_context
+    context = await add_organization_context({
+        "request": request, 
+        "roles": current_user.roles
+    })
+    return templates.TemplateResponse("choose_role.html", context)
 
 @router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard_redirect(request: Request, current_user: User = Depends(get_current_normal_user)):
@@ -337,7 +367,9 @@ async def show_vote_page(idea_id: str, request: Request, current_user: User = De
         
         # Compter les votes de l'utilisateur
         user_votes_count = await get_user_votes_count(str(current_user.id))
-        return templates.TemplateResponse("user/vote.html", {
+        
+        from src.utils.template_helpers import add_organization_context
+        context = await add_organization_context({
             "request": request,
             "current_user": current_user,
             "idea": idea,
@@ -345,9 +377,9 @@ async def show_vote_page(idea_id: str, request: Request, current_user: User = De
             "has_voted": user_has_voted,
             "votes_count": len(idea.votes),
             "total_ideas_count": 1,
-            "user_votes_count": user_votes_count,
-            "show_sidebar": True
+            "user_votes_count": user_votes_count
         })
+        return templates.TemplateResponse("user/vote.html", context)
     
     except HTTPException:
         raise
@@ -401,22 +433,24 @@ async def user_subjects(request: Request, current_user: User = Depends(get_curre
                     "available_votes": max(0, subject.vote_limit - my_votes_count) if subject.vote_active else 0
                 })
         
-        return templates.TemplateResponse("user/subjects.html", {
+        from src.utils.template_helpers import add_organization_context
+        context = await add_organization_context({
             "request": request,
             "current_user": current_user,
             "user_subjects": user_subjects,
-            "subjects_count": len(user_subjects),
-            "show_sidebar": True
+            "subjects_count": len(user_subjects)
         })
+        return templates.TemplateResponse("user/subjects.html", context)
     except Exception as e:
         print(f"❌ Erreur subjects utilisateur: {e}")
-        return templates.TemplateResponse("user/subjects.html", {
+        from src.utils.template_helpers import add_organization_context
+        context = await add_organization_context({
             "request": request,
             "current_user": current_user,
             "user_subjects": [],
-            "subjects_count": 0,
-            "show_sidebar": True
+            "subjects_count": 0
         })
+        return templates.TemplateResponse("user/subjects.html", context)
 
 @router.get("/user/subjects/ideas", response_class=HTMLResponse)
 async def user_subjects_ideas(request: Request, current_user: User = Depends(get_current_normal_user)):
@@ -453,22 +487,24 @@ async def user_subjects_ideas(request: Request, current_user: User = Depends(get
                         "my_votes_count": len([i for i in enriched_ideas if i["has_voted"]])
                     })
         
-        return templates.TemplateResponse("user/subjects_ideas.html", {
+        from src.utils.template_helpers import add_organization_context
+        context = await add_organization_context({
             "request": request,
             "current_user": current_user,
             "subjects_with_ideas": subjects_with_ideas,
-            "subjects_count": len(subjects_with_ideas),
-            "show_sidebar": True
+            "subjects_count": len(subjects_with_ideas)
         })
+        return templates.TemplateResponse("user/subjects_ideas.html", context)
     except Exception as e:
         print(f"❌ Erreur subjects_ideas utilisateur: {e}")
-        return templates.TemplateResponse("user/subjects_ideas.html", {
+        from src.utils.template_helpers import add_organization_context
+        context = await add_organization_context({
             "request": request,
             "current_user": current_user,
             "subjects_with_ideas": [],
-            "subjects_count": 0,
-            "show_sidebar": True
+            "subjects_count": 0
         })
+        return templates.TemplateResponse("user/subjects_ideas.html", context)
 
 @router.get("/user/ideas/submit", response_class=HTMLResponse)
 async def submit_idea_form(request: Request, current_user: User = Depends(get_current_normal_user)):
@@ -483,22 +519,24 @@ async def submit_idea_form(request: Request, current_user: User = Depends(get_cu
                 (str(current_user.id) in subject.users_ids or str(current_user.id) in subject.gestionnaires_ids)):
                 available_subjects.append(subject)
         
-        return templates.TemplateResponse("user/submit_idea.html", {
+        from src.utils.template_helpers import add_organization_context
+        context = await add_organization_context({
             "request": request,
             "current_user": current_user,
             "available_subjects": available_subjects,
-            "subjects_count": len(available_subjects),
-            "show_sidebar": True
+            "subjects_count": len(available_subjects)
         })
+        return templates.TemplateResponse("user/submit_idea.html", context)
     except Exception as e:
         print(f"❌ Erreur formulaire soumission idée: {e}")
-        return templates.TemplateResponse("user/submit_idea.html", {
+        from src.utils.template_helpers import add_organization_context
+        context = await add_organization_context({
             "request": request,
             "current_user": current_user,
             "available_subjects": [],
-            "subjects_count": 0,
-            "show_sidebar": True
+            "subjects_count": 0
         })
+        return templates.TemplateResponse("user/submit_idea.html", context)
 
 @router.post("/user/ideas/submit")
 async def submit_idea(
