@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block title %}Centre de Vote - {{ current_user.nom }} {{ current_user.prenom }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <h2 class="mb-4">
+                <i class="fas fa-vote-yea text-primary"></i> Centre de Vote
+            </h2>
+            
+            <!-- Statistiques de vote -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h5 class="card-title">Mes Votes</h5>
+                                    <h3 class="mb-0">{{ user_votes_count }}</h3>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-check-circle fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h5 class="card-title">Idées Disponibles</h5>
+                                    <h3 class="mb-0">{{ total_ideas_count }}</h3>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-lightbulb fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h5 class="card-title">Sujets Actifs</h5>
+                                    <h3 class="mb-0">{{ vote_subjects|length }}</h3>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-clipboard-list fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h5 class="card-title">Participation</h5>
+                                    <h3 class="mb-0">
+                                        {% if total_ideas_count > 0 %}
+                                            {{ ((user_votes_count / total_ideas_count) * 100)|round(1) }}%
+                                        {% else %}
+                                            0%
+                                        {% endif %}
+                                    </h3>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-chart-pie fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Messages d'erreur -->
+            {% if request.query_params.get('error') %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    {{ request.query_params.get('error') }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endif %}
+
+            <!-- Messages d'erreur du template -->
+            {% if error %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    {{ error }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endif %}
+
+            <!-- Sujets avec vote actif -->
+            {% if vote_subjects %}
+                <form method="post" action="/user/vote/batch">
+                    <div class="row">
+                        {% for subject in vote_subjects %}
+                            <div class="col-md-12 mb-4">
+                                <div class="card">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0">
+                                            <i class="fas fa-clipboard-list text-primary"></i>
+                                            {{ subject.subject.titre }}
+                                        </h5>
+                                        <div class="d-flex align-items-center">
+                                            <span class="badge bg-success me-2">Vote Actif</span>
+                                            <span class="badge bg-info me-2">
+                                                Limite: {{ subject.subject.vote_limit }} votes
+                                            </span>
+                                            <span class="badge bg-secondary">
+                                                Mes votes: {{ user_votes_for_subject.get(subject.subject.id, 0) }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <p class="card-text">{{ subject.subject.description }}</p>
+                                        <div class="mb-3">
+                                            <div class="d-flex justify-content-between mb-1">
+                                                <span>Mes votes pour ce sujet:</span>
+                                                <span>{{ user_votes_for_subject.get(subject.subject.id, 0) }} / {{ subject.subject.vote_limit }}</span>
+                                            </div>
+                                            <div class="progress">
+                                                <div class="progress-bar" role="progressbar" 
+                                                     style="width: {{ (user_votes_for_subject.get(subject.subject.id, 0) / subject.subject.vote_limit * 100)|round(1) }}%">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% if subject.ideas %}
+                                            <div class="row">
+                                                {% for idea in subject.ideas %}
+                                                    <div class="col-md-6 mb-3">
+                                                        <div class="card {% if current_user.id|string in idea.votes %}border-success{% else %}border-secondary{% endif %}">
+                                                            <div class="card-body">
+                                                                <h6 class="card-title">
+                                                                    {{ idea.title }}
+                                                                    {% if current_user.id|string in idea.votes %}
+                                                                        <i class="fas fa-check-circle text-success"></i>
+                                                                    {% endif %}
+                                                                </h6>
+                                                                {% if idea.description %}
+                                                                    <p class="card-text small">{{ idea.description }}</p>
+                                                                {% endif %}
+                                                                <div class="d-flex justify-content-between align-items-center">
+                                                                    <span class="badge bg-info">
+                                                                        {{ idea.votes|length }} vote(s)
+                                                                    </span>
+                                                                    {% if current_user.id|string not in idea.votes and user_votes_for_subject.get(subject.subject.id, 0) < subject.subject.vote_limit %}
+                                                                        <input type="checkbox" name="idea_ids" value="{{ idea.id }}">
+                                                                    {% elif current_user.id|string in idea.votes %}
+                                                                        <span class="text-success small">Déjà voté</span>
+                                                                    {% endif %}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <div class="alert alert-info">
+                                                <i class="fas fa-info-circle"></i>
+                                                Aucune idée disponible pour ce sujet.
+                                            </div>
+                                        {% endif %}
+                                        <div class="mt-3">
+                                            <a href="/user/subject/{{ subject.subject.id }}/ideas" class="btn btn-outline-primary">
+                                                <i class="fas fa-eye"></i> Voir toutes les idées
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <div class="text-center my-4">
+                        <button type="submit" class="btn btn-lg btn-success">
+                            <i class="fas fa-thumbs-up"></i> Voter pour la sélection
+                        </button>
+                    </div>
+                </form>
+            {% else %}
+                <div class="alert alert-info text-center">
+                    <i class="fas fa-info-circle fa-2x mb-3"></i>
+                    <h5>Aucun sujet avec vote actif</h5>
+                    <p>Il n'y a actuellement aucun sujet avec une session de vote active.</p>
+                    <a href="/user/dashboard" class="btn btn-primary">
+                        <i class="fas fa-arrow-left"></i> Retour au Dashboard
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    transition: transform 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+
+.progress {
+    height: 8px;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+</style>
+{% endblock %}

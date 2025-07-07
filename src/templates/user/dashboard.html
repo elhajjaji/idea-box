@@ -19,7 +19,42 @@
         </div>
         {% endif %}
     </div>
+    <div class="d-flex gap-2">
+        <!-- Nouveau bouton d'accès rapide au vote -->
+        {% if vote_subjects %}
+        <a href="/user/vote" class="btn btn-warning btn-lg pulse-animation">
+            <i class="bi bi-hand-thumbs-up me-2"></i>
+            <span class="d-none d-sm-inline">Votes Disponibles</span>
+            <span class="badge bg-light text-dark ms-2">{{ vote_subjects|length }}</span>
+        </a>
+        {% endif %}
+        <a href="/user/ideas" class="btn btn-outline-primary">
+            <i class="bi bi-lightbulb me-2"></i>Mes Idées
+        </a>
+    </div>
 </div>
+
+<!-- Alerte pour votes urgents -->
+{% if vote_subjects %}
+<div class="alert alert-warning alert-dismissible fade show border-warning shadow-sm" role="alert">
+    <div class="d-flex align-items-center">
+        <i class="bi bi-exclamation-triangle-fill me-3 fs-4"></i>
+        <div class="flex-grow-1">
+            <strong>Sessions de vote actives !</strong>
+            <p class="mb-0">
+                Vous avez {{ vote_subjects|length }} sujet(s) avec vote actif. 
+                {% set total_available_votes = vote_subjects|sum(attribute='subject.vote_limit') %}
+                {% set total_used_votes = user_stats.user_votes_count %}
+                Il vous reste {{ total_available_votes - total_used_votes }} vote(s) à utiliser.
+            </p>
+        </div>
+        <a href="/user/vote" class="btn btn-warning btn-sm">
+            <i class="bi bi-hand-thumbs-up me-1"></i>Voter maintenant
+        </a>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
 
 <!-- Métriques Clés -->
 <div class="row mb-4">
@@ -54,12 +89,23 @@
         </div>
     </div>
     <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-info shadow h-100 py-2">
+        <div class="card border-left-info shadow h-100 py-2 {% if vote_subjects %}clickable-card{% endif %}" 
+             {% if vote_subjects %}onclick="window.location.href='/user/vote'"{% endif %}>
             <div class="card-body">
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Votes Donnés</div>
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Votes Donnés
+                            {% if vote_subjects %}
+                                <i class="bi bi-hand-thumbs-up text-warning ms-1" title="Cliquez pour voter"></i>
+                            {% endif %}
+                        </div>
                         <div class="h5 mb-0 font-weight-bold text-gray-800">{{ user_stats.user_votes_count }}</div>
+                        {% if vote_subjects %}
+                        <div class="text-xs text-warning">
+                            <i class="bi bi-arrow-right me-1"></i>Cliquez pour voter
+                        </div>
+                        {% endif %}
                     </div>
                     <div class="col-auto">
                         <i class="bi bi-hand-thumbs-up-fill fa-2x text-gray-300"></i>
@@ -74,7 +120,13 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Taux de Participation</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">...%</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {% if user_stats.get('participation_rate') %}
+                                {{ "%.1f"|format(user_stats.participation_rate) }}%
+                            {% else %}
+                                0.0%
+                            {% endif %}
+                        </div>
                     </div>
                     <div class="col-auto">
                         <i class="bi bi-graph-up-arrow fa-2x text-gray-300"></i>
@@ -84,6 +136,113 @@
         </div>
     </div>
 </div>
+
+<!-- Sessions de Vote Actives - Version améliorée -->
+{% if vote_subjects %}
+<div class="card shadow mb-4 border-warning">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center bg-gradient-warning">
+        <h6 class="m-0 font-weight-bold text-white">
+            <i class="bi bi-hand-thumbs-up-fill me-2"></i>🚨 Sessions de Vote Actives - Action Requise
+        </h6>
+        <div class="d-flex align-items-center">
+            <span class="badge bg-light text-dark rounded-pill me-2">{{ vote_subjects|length }}</span>
+            <a href="/user/vote" class="btn btn-light btn-sm">
+                <i class="bi bi-hand-thumbs-up me-1"></i>Centre de Vote
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            {% for subject in vote_subjects %}
+            <div class="col-md-6 mb-3">
+                <div class="card border-warning shadow-sm hover-lift">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div class="flex-grow-1">
+                                <h6 class="card-title fw-bold">{{ subject.subject.name }}</h6>
+                                <p class="card-text text-muted small mb-2">{{ subject.subject.description|truncate(80) }}</p>
+                                
+                                <!-- Barre de progression des votes pour ce sujet -->
+                                <div class="mb-2">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="small text-muted">Vos votes :</span>
+                                        <span class="small fw-bold">
+                                            {{ user_votes_for_subject.get(subject.subject.id|string, 0) if user_votes_for_subject else 0 }} / {{ subject.subject.vote_limit }}
+                                        </span>
+                                    </div>
+                                    <div class="progress" style="height: 6px;">
+                                        <div class="progress-bar bg-warning" role="progressbar" 
+                                             style="width: {{ ((user_votes_for_subject.get(subject.subject.id|string, 0) if user_votes_for_subject else 0) / subject.subject.vote_limit * 100)|round(1) }}%">
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-flex align-items-center mb-3">
+                                    <span class="badge bg-info me-2">
+                                        <i class="bi bi-lightbulb-fill me-1"></i>{{ subject.ideas|length if subject.ideas else 0 }} idées
+                                    </span>
+                                    <span class="badge bg-success me-2">
+                                        <i class="bi bi-hand-thumbs-up-fill me-1"></i>{{ subject.votes_count if subject.votes_count else 0 }} votes
+                                    </span>
+                                    {% if (user_votes_for_subject.get(subject.subject.id|string, 0) if user_votes_for_subject else 0) >= subject.subject.vote_limit %}
+                                        <span class="badge bg-secondary">
+                                            <i class="bi bi-check-circle-fill me-1"></i>Terminé
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="bi bi-clock-fill me-1"></i>En cours
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a href="/user/subject/{{ subject.subject.id }}/ideas" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-eye me-1"></i>Voir les idées
+                            </a>
+                            <div class="btn-group">
+                                <a href="/user/subject/{{ subject.subject.id }}/ideas" class="btn btn-warning btn-sm">
+                                    <i class="bi bi-hand-thumbs-up me-1"></i>Voter
+                                </a>
+                                <a href="/user/vote" class="btn btn-outline-warning btn-sm">
+                                    <i class="bi bi-speedometer2 me-1"></i>Vue rapide
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Résumé global et action principale -->
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card bg-light border-warning">
+                    <div class="card-body text-center">
+                        <h6 class="card-title">
+                            <i class="bi bi-graph-up-arrow me-2"></i>Résumé de vos votes
+                        </h6>
+                        <p class="mb-3">
+                            Vous avez utilisé <strong>{{ user_stats.user_votes_count }}</strong> vote(s) au total.
+                            {% set total_available = vote_subjects|sum(attribute='subject.vote_limit') %}
+                            {% if total_available > user_stats.user_votes_count %}
+                                Il vous reste <strong class="text-warning">{{ total_available - user_stats.user_votes_count }}</strong> vote(s) disponible(s).
+                            {% else %}
+                                Vous avez utilisé tous vos votes disponibles !
+                            {% endif %}
+                        </p>
+                        <a href="/user/vote" class="btn btn-warning btn-lg">
+                            <i class="bi bi-hand-thumbs-up me-2"></i>Accéder au Centre de Vote
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <!-- Mes Sujets -->
 <div class="card shadow mb-4">
@@ -97,16 +256,40 @@
         {% if user_subjects %}
             <div class="list-group list-group-flush">
                 {% for subject in user_subjects %}
-                <a href="/user/subject/{{ subject.id }}/ideas" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                <div class="list-group-item d-flex justify-content-between align-items-center">
                     <div>
                         <h5 class="mb-1">{{ subject.name }}</h5>
                         <p class="mb-1 text-muted small">{{ subject.description|truncate(120) }}</p>
+                        <div class="mt-2">
+                            {% if subject.vote_active %}
+                                <span class="badge bg-warning text-dark me-2">
+                                    <i class="bi bi-hand-thumbs-up-fill me-1"></i>Vote actif
+                                </span>
+                            {% endif %}
+                            {% if subject.emission_active %}
+                                <span class="badge bg-success me-2">
+                                    <i class="bi bi-play-circle-fill me-1"></i>Émission active
+                                </span>
+                            {% endif %}
+                        </div>
                     </div>
                     <div class="text-end ms-4">
-                        <span class="badge bg-info rounded-pill me-2">{{ subject.ideas_count }} idées</span>
-                        <span class="badge bg-success rounded-pill">{{ subject.votes_count }} votes</span>
+                        <div class="mb-2">
+                            <span class="badge bg-info rounded-pill me-2">{{ subject.ideas_count if subject.ideas_count else 0 }} idées</span>
+                            <span class="badge bg-success rounded-pill">{{ subject.votes_count if subject.votes_count else 0 }} votes</span>
+                        </div>
+                        <div class="btn-group" role="group">
+                            <a href="/user/subject/{{ subject.id }}/ideas" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-eye me-1"></i>Voir
+                            </a>
+                            {% if subject.vote_active %}
+                                <a href="/user/subject/{{ subject.id }}/ideas" class="btn btn-warning btn-sm">
+                                    <i class="bi bi-hand-thumbs-up me-1"></i>Voter
+                                </a>
+                            {% endif %}
+                        </div>
                     </div>
-                </a>
+                </div>
                 {% endfor %}
             </div>
         {% else %}
@@ -134,6 +317,57 @@
 }
 .list-group-item-action:hover {
     background-color: #f8f9fc;
+}
+
+/* Nouvelles animations et effets */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.pulse-animation {
+    animation: pulse 2s infinite;
+}
+
+.pulse-animation:hover {
+    animation: none;
+    transform: scale(1.02);
+}
+
+.hover-lift {
+    transition: transform 0.2s ease-in-out;
+}
+
+.hover-lift:hover {
+    transform: translateY(-2px);
+}
+
+.clickable-card {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.clickable-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+}
+
+.bg-gradient-warning {
+    background: linear-gradient(135deg, #f6c23e 0%, #f4a506 100%);
+}
+
+.progress {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    border-radius: 10px;
+}
+
+.card.border-warning {
+    border-width: 2px;
 }
 </style>
 {% endblock %}

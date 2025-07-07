@@ -1,6 +1,9 @@
-from pydantic import ConfigDict, Field
-from typing import List, Optional
-from odmantic import Model
+from pydantic import ConfigDict
+from typing import List, Optional, TYPE_CHECKING
+from odmantic import Model, Field
+
+if TYPE_CHECKING:
+    from src.models.idea import Idea
 
 class Subject(Model):
     __collection__ = "subjects"
@@ -17,7 +20,7 @@ class Subject(Model):
     ideas_count: Optional[int] = 0
     votes_count: Optional[int] = 0
     user_ideas_count: Optional[int] = 0
-
+    
     model_config = ConfigDict(
         json_schema_extra={
             "example": {

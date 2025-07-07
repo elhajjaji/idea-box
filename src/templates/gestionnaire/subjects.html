@@ -97,11 +97,11 @@
                         <tbody id="subjectsTableBody">
                             {% for subject in subjects %}
                             <tr class="subject-row" 
-                                data-name="{{ subject.name|lower }}"
-                                data-emission="{{ 'active' if subject.emission_active else 'inactive' }}"
-                                data-vote="{{ 'active' if subject.vote_active else 'inactive' }}">
+                                data-name="{{ subject.subject.name|lower }}"
+                                data-emission="{{ 'active' if subject.subject.emission_active else 'inactive' }}"
+                                data-vote="{{ 'active' if subject.subject.vote_active else 'inactive' }}">
                                 <td class="ps-4">
-                                    <input type="checkbox" class="form-check-input subject-checkbox" name="subject_ids" value="{{ subject.id }}">
+                                    <input type="checkbox" class="form-check-input subject-checkbox" name="subject_ids" value="{{ subject.subject.id }}">
                                 </td>
                                 <td>
                                     <div class="d-flex align-items-center">
@@ -111,26 +111,26 @@
                                             </div>
                                         </div>
                                         <div>
-                                            <h6 class="mb-0 fw-bold">{{ subject.name }}</h6>
-                                            <small class="text-muted">ID: {{ subject.id }}</small>
+                                            <h6 class="mb-0 fw-bold">{{ subject.subject.name }}</h6>
+                                            <small class="text-muted">ID: {{ subject.subject.id }}</small>
                                         </div>
                                     </div>
                                 </td>
                                 <td>
-                                    {% if subject.description %}
-                                        <span class="text-muted">{{ subject.description|truncate(80) }}</span>
+                                    {% if subject.subject.description %}
+                                        <span class="text-muted">{{ subject.subject.description|truncate(80) }}</span>
                                     {% else %}
                                         <em class="text-muted">Aucune description</em>
                                     {% endif %}
                                 </td>
                                 <td class="text-center">
                                     <div class="btn-group" role="group">
-                                        {% if subject.emission_active %}
+                                        {% if subject.subject.emission_active %}
                                             <span class="badge bg-success me-2">
                                                 <i class="bi bi-play-circle-fill me-1"></i>Active
                                             </span>
                                             <button type="button" class="btn btn-outline-secondary btn-sm" 
-                                                    onclick="confirmSingleAction('deactivate_emission', '{{ subject.id }}', '{{ subject.name }}')" 
+                                                    onclick="confirmSingleAction('deactivate_emission', '{{ subject.subject.id }}', '{{ subject.subject.name }}')" 
                                                     title="Désactiver l'émission">
                                                 <i class="bi bi-pause"></i>
                                             </button>
@@ -139,7 +139,7 @@
                                                 <i class="bi bi-pause-circle me-1"></i>Inactive
                                             </span>
                                             <button type="button" class="btn btn-outline-success btn-sm" 
-                                                    onclick="confirmSingleAction('activate_emission', '{{ subject.id }}', '{{ subject.name }}')" 
+                                                    onclick="confirmSingleAction('activate_emission', '{{ subject.subject.id }}', '{{ subject.subject.name }}')" 
                                                     title="Activer l'émission">
                                                 <i class="bi bi-play"></i>
                                             </button>
@@ -148,7 +148,7 @@
                                 </td>
                                 <td class="text-center">
                                     <div class="btn-group" role="group">
-                                        {% if subject.vote_active %}
+                                        {% if subject.subject.vote_active %}
                                             <span class="badge bg-primary me-2">
                                                 <i class="bi bi-hand-thumbs-up-fill me-1"></i>Active
                                             </span>
@@ -159,13 +159,13 @@
                                                 <ul class="dropdown-menu">
                                                     <li>
                                                         <button type="button" class="dropdown-item" 
-                                                                onclick="confirmSingleAction('close_vote', '{{ subject.id }}', '{{ subject.name }}')">
+                                                                onclick="confirmSingleAction('close_vote', '{{ subject.subject.id }}', '{{ subject.subject.name }}')">
                                                             <i class="bi bi-check-circle me-2"></i>Clôturer
                                                         </button>
                                                     </li>
                                                     <li>
                                                         <button type="button" class="dropdown-item text-danger" 
-                                                                onclick="confirmSingleAction('abandon_vote', '{{ subject.id }}', '{{ subject.name }}')">
+                                                                onclick="confirmSingleAction('abandon_vote', '{{ subject.subject.id }}', '{{ subject.subject.name }}')">
                                                             <i class="bi bi-x-circle me-2"></i>Abandonner
                                                         </button>
                                                     </li>
@@ -175,10 +175,10 @@
                                             <span class="badge bg-secondary me-2">
                                                 <i class="bi bi-hand-thumbs-up me-1"></i>Inactive
                                             </span>
-                                            {% if not subject.emission_active %}
+                                            {% if not subject.subject.emission_active %}
                                                 {% if subject.ideas_count > 0 %}
                                                     <button type="button" class="btn btn-outline-primary btn-sm" 
-                                                            onclick="confirmSingleAction('activate_vote', '{{ subject.id }}', '{{ subject.name }}')" 
+                                                            onclick="confirmSingleAction('activate_vote', '{{ subject.subject.id }}', '{{ subject.subject.name }}')" 
                                                             title="Activer le vote ({{ subject.ideas_count }} idée(s) disponible(s))">
                                                         <i class="bi bi-hand-thumbs-up"></i>
                                                     </button>
@@ -209,14 +209,14 @@
                                     {% endif %}
                                 </td>
                                 <td class="text-center">
-                                    <span class="badge bg-info">{{ subject.users_ids|length }} utilisateurs</span>
+                                    <span class="badge bg-info">{{ subject.subject.users_ids|length }} utilisateurs</span>
                                 </td>
                                 <td class="text-center">
                                     <div class="btn-group" role="group">
-                                        <a href="/gestionnaire/subject/{{ subject.id }}/manage_users" class="btn btn-sm btn-outline-info" title="Gérer les utilisateurs">
+                                        <a href="/gestionnaire/subject/{{ subject.subject.id }}/manage_users" class="btn btn-sm btn-outline-info" title="Gérer les utilisateurs">
                                             <i class="bi bi-people"></i>
                                         </a>
-                                        <a href="/gestionnaire/subject/{{ subject.id }}/history" class="btn btn-sm btn-outline-secondary" title="Voir l'historique">
+                                        <a href="/gestionnaire/subject/{{ subject.subject.id }}/history" class="btn btn-sm btn-outline-secondary" title="Voir l'historique">
                                             <i class="bi bi-clock-history"></i>
                                         </a>
                                     </div>

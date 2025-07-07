@@ -26,7 +26,12 @@
                         {% for subject in subjects %}
                             <div class="list-group-item d-flex justify-content-between align-items-center">
                                 <div>
-                                    <h6 class="mb-1">{{ subject.name }}</h6>
+                                    <h6 class="mb-1">
+                                        {{ subject.name }}
+                                        <span class="text-muted small">
+                                            ({{ subject.ideas_count }} idée(s), {{ subject.votes_count }} votant(s))
+                                        </span>
+                                    </h6>
                                     {% if subject.description %}
                                         <small class="text-muted">{{ subject.description[:80] }}{% if subject.description|length > 80 %}...{% endif %}</small>
                                     {% endif %}
