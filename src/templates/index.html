@@ -124,6 +124,87 @@
                 </div>
             </div>
         </div>
+
+        {% if metrics %}
+        <div class="row mb-4">
+            <div class="col-md-4 mb-3">
+                <div class="card border-left-primary shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="me-3">
+                                <i class="bi bi-collection-fill fa-2x text-primary"></i>
+                            </div>
+                            <div>
+                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Sujets accessibles</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">{{ metrics.subjects_count }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="card border-left-success shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="me-3">
+                                <i class="bi bi-lightbulb-fill fa-2x text-success"></i>
+                            </div>
+                            <div>
+                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Idées</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">{{ metrics.ideas_count }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="card border-left-info shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="me-3">
+                                <i class="bi bi-hand-thumbs-up-fill fa-2x text-info"></i>
+                            </div>
+                            <div>
+                                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Votes</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">{{ metrics.votes_count }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow">
+                    <div class="card-header bg-light">
+                        <h6 class="m-0 font-weight-bold text-primary">
+                            <i class="bi bi-clock-history me-2"></i>Derniers sujets accessibles
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        {% if metrics.latest_subjects %}
+                        <ul class="list-group list-group-flush">
+                            {% for subject in metrics.latest_subjects %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">{{ subject.name }}</h6>
+                                    <div class="text-muted small">{{ subject.description }}</div>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-info me-2">{{ subject.ideas_count }} idées</span>
+                                    <span class="badge bg-success">{{ subject.votes_count }} votes</span>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <div class="text-muted">Aucun sujet récent.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
         {% endif %}
     </div>
 </div>
