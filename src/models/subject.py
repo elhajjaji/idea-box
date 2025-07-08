@@ -15,6 +15,7 @@ class Subject(Model):
     emission_active: bool = False
     vote_active: bool = False
     vote_limit: int = 1 # Number of votes per user
+    show_votes_during_vote: bool = True  # Afficher le nombre de votes pendant la session de vote
 
     # Attributs pour les statistiques (non stockés en DB)
     ideas_count: Optional[int] = 0
@@ -31,7 +32,8 @@ class Subject(Model):
                 "users_ids": [],
                 "emission_active": False,
                 "vote_active": False,
-                "vote_limit": 3
+                "vote_limit": 3,
+                "show_votes_during_vote": True
             }
         }
     )

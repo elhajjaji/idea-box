@@ -145,7 +145,7 @@
                                     <button class="btn btn-sm btn-outline-info" onclick="viewUserStats('{{ user.id }}')">
                                         <i class="bi bi-eye"></i>
                                     </button>
-                                    {% if str(user.id) not in subject.gestionnaires_ids %}
+                                    {% if user.id|string not in subject.gestionnaires_ids %}
                                     <form method="post" action="/gestionnaire/subject/{{ subject.id }}/users/remove" style="display: inline;">
                                         <input type="hidden" name="user_id" value="{{ user.id }}">
                                         <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Êtes-vous sûr de vouloir retirer cet utilisateur du sujet ?')">

@@ -19,9 +19,51 @@
         <p class="text-muted mb-0">{{ subject.description }}</p>
     </div>
     <div class="text-end">
-        <span class="badge bg-primary fs-6">{{ ideas|length }} idée(s)</span>
+        <span class="badge bg-primary fs-6">{{ metrics.total_ideas }} idée(s)</span>
     </div>
 </div>
+
+<!-- Métriques de votes -->
+{% if metrics %}
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center">
+            <div class="card-body">
+                <i class="bi bi-hand-thumbs-up text-primary" style="font-size: 2rem;"></i>
+                <h4 class="mt-2 mb-1">{{ metrics.total_votes }}</h4>
+                <small class="text-muted">Total des votes</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center">
+            <div class="card-body">
+                <i class="bi bi-person-check text-success" style="font-size: 2rem;"></i>
+                <h4 class="mt-2 mb-1">{{ metrics.my_votes_count }}/{{ metrics.vote_limit }}</h4>
+                <small class="text-muted">Mes votes</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center">
+            <div class="card-body">
+                <i class="bi bi-people text-info" style="font-size: 2rem;"></i>
+                <h4 class="mt-2 mb-1">{{ metrics.participation_rate }}%</h4>
+                <small class="text-muted">Participation</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm text-center">
+            <div class="card-body">
+                <i class="bi bi-bar-chart text-warning" style="font-size: 2rem;"></i>
+                <h4 class="mt-2 mb-1">{{ metrics.average_votes_per_idea }}</h4>
+                <small class="text-muted">Moyenne/idée</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <!-- Statut de l'émission et du vote -->
 <div class="row mb-4">
@@ -43,7 +85,7 @@
             <div class="card-body text-center">
                 {% if subject.vote_active %}
                     <i class="bi bi-hand-thumbs-up text-primary" style="font-size: 2rem;"></i>
-                    <h6 class="text-primary mt-2">Vote actif</h6>
+                    <h6 class="text-primary mt-2">Vote actif ({{ metrics.votes_remaining }} votes restants)</h6>
                 {% else %}
                     <i class="bi bi-hand-thumbs-up text-muted" style="font-size: 2rem;"></i>
                     <h6 class="text-muted mt-2">Vote inactif</h6>
@@ -87,37 +129,132 @@
     </div>
 {% endif %}
 
+<!-- Top des idées -->
+{% if top_ideas and not subject.vote_active and not subject.emission_active %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">
+            <i class="bi bi-trophy me-2"></i>Top des idées les plus votées
+        </h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Rang</th>
+                                <th>Idée</th>
+                                <th>Votes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for idea in top_ideas[:5] %}
+                            <tr>
+                                <td>
+                                    <span class="badge bg-{% if loop.index == 1 %}warning{% elif loop.index == 2 %}secondary{% elif loop.index == 3 %}info{% else %}light{% endif %}">#{{ loop.index }}</span>
+                                </td>
+                                <td>
+                                    <div>
+                                        <strong>{{ idea.title }}</strong>
+                                        {% if idea.description %}
+                                            <br><small class="text-muted">{{ idea.description[:50] }}{% if idea.description|length > 50 %}...{% endif %}</small>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-success fs-6">{{ idea.votes_count }}</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-center">
+                    <h6 class="text-muted mb-3">Répartition des votes</h6>
+                    <div style="position: relative; height: 300px; width: 300px; margin: 0 auto;">
+                        <canvas id="votesPieChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        {% if top_ideas|length > 5 %}
+        <div class="text-center mt-3">
+            <small class="text-muted">
+                <i class="bi bi-info-circle me-1"></i>
+                Affichage du top 5 sur {{ top_ideas|length }} idées
+            </small>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% elif subject.vote_active or subject.emission_active %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">
+            <i class="bi bi-trophy me-2"></i>Résultats des votes
+        </h6>
+    </div>
+    <div class="card-body text-center py-5">
+        <i class="bi bi-lock text-muted" style="font-size: 3rem;"></i>
+        <h5 class="mt-3 text-muted">Résultats masqués</h5>
+        <p class="text-muted">
+            {% if subject.vote_active %}
+                Les résultats des votes seront visibles une fois la session de vote terminée.
+            {% elif subject.emission_active %}
+                Les résultats des votes seront visibles une fois l'émission d'idées désactivée.
+            {% endif %}
+        </p>
+    </div>
+</div>
+{% endif %}
+
 <!-- Liste des idées existantes -->
 <div class="card shadow">
     <div class="card-header py-3 d-flex justify-content-between align-items-center bg-light">
         <h6 class="m-0 font-weight-bold text-primary">
             <i class="bi bi-collection me-2"></i>Idées proposées
         </h6>
-        <span class="badge bg-primary rounded-pill">{{ ideas|length }}</span>
+        <span class="badge bg-primary rounded-pill">{{ metrics.total_ideas }}</span>
     </div>
     <div class="card-body p-0">
         {% if ideas %}
+        <form method="post" action="/user/subject/{{ subject.id }}/ideas/vote_batch">
             <ul class="list-group list-group-flush">
-                {% for idea in ideas %}
+                {% for item in ideas %}
+                {% set idea = item.idea %}
                 <li class="list-group-item p-3">
                     <div class="d-flex w-100 justify-content-between">
                         <div>
                             <h5 class="mb-1 text-dark">{{ idea.title }}</h5>
                             <p class="mb-1 text-muted">{{ idea.description }}</p>
                             <small class="text-muted">
-                                <i class="bi bi-person-circle me-1"></i>Proposé par ... 
+                                <i class="bi bi-person-circle me-1"></i>Proposé par ...
                                 <i class="bi bi-calendar3 ms-2 me-1"></i>{{ idea.created_at.strftime('%d/%m/%Y') }}
                             </small>
                         </div>
                         <div class="text-end ms-4">
                             <div class="d-flex flex-column align-items-center">
-                                <span class="badge bg-danger rounded-pill fs-6 mb-2">{{ idea.votes | length }}</span>
+                                {% if subject.vote_active and (subject.show_votes_during_vote or not subject.vote_active) %}
+                                    <span class="badge bg-danger rounded-pill fs-6 mb-2">{{ item.vote_count }}</span>
+                                {% elif not subject.vote_active %}
+                                    <span class="badge bg-danger rounded-pill fs-6 mb-2">{{ item.vote_count }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary rounded-pill fs-6 mb-2">Votes cachés</span>
+                                {% endif %}
                                 {% if subject.vote_active %}
-                                    <form action="/user/idea/{{ idea.id }}/vote" method="post" class="d-inline">
-                                        <button type="submit" class="btn btn-sm {% if current_user.id|string in idea.votes %}btn-danger{% else %}btn-outline-danger{% endif %}">
-                                            <i class="bi bi-heart-fill"></i>
-                                        </button>
-                                    </form>
+                                    <button type="button" class="btn btn-link p-0 border-0 vote-heart-btn" data-ideaid="{{ idea.id }}" tabindex="0">
+                                        {% if item.has_voted %}
+                                            <i class="bi bi-heart-fill heart-icon text-danger fs-3" data-voted="1"></i>
+                                        {% else %}
+                                            <i class="bi bi-heart heart-icon text-secondary fs-3" data-voted="0"></i>
+                                        {% endif %}
+                                        <input type="checkbox" name="idea_ids" value="{{ idea.id }}" class="d-none vote-checkbox" {% if item.has_voted %}checked disabled{% endif %}>
+                                    </button>
                                 {% else %}
                                     <span class="badge bg-secondary"><i class="bi bi-lock-fill"></i></span>
                                 {% endif %}
@@ -127,6 +264,33 @@
                 </li>
                 {% endfor %}
             </ul>
+            {% if subject.vote_active %}
+            <div class="text-center my-4">
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-hand-thumbs-up me-1"></i>Valider mes votes
+                </button>
+            </div>
+            {% endif %}
+        </form>
+        <script>
+        // Permet de sélectionner/désélectionner les coeurs (votes) avant validation
+        const heartBtns = document.querySelectorAll('.vote-heart-btn');
+        heartBtns.forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                const icon = btn.querySelector('.heart-icon');
+                const checkbox = btn.querySelector('.vote-checkbox');
+                if (checkbox.disabled) return; // déjà voté, non modifiable
+                checkbox.checked = !checkbox.checked;
+                if (checkbox.checked) {
+                    icon.classList.remove('bi-heart', 'text-secondary');
+                    icon.classList.add('bi-heart-fill', 'text-danger');
+                } else {
+                    icon.classList.remove('bi-heart-fill', 'text-danger');
+                    icon.classList.add('bi-heart', 'text-secondary');
+                }
+            });
+        });
+        </script>
         {% else %}
             <div class="text-center py-5">
                 <i class="bi bi-lightbulb-off text-muted" style="font-size: 3rem;"></i>
@@ -148,4 +312,105 @@
         <i class="bi bi-arrow-left me-2"></i>Retour au tableau de bord
     </a>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Graphique de proportionnalité des votes
+{% if top_ideas %}
+const topIdeasData = {{ top_ideas[:5]|tojson }};
+const votesPieCtx = document.getElementById('votesPieChart');
+
+if (votesPieCtx && topIdeasData.length > 0) {
+    // Préparer les données pour le graphique
+    const labels = topIdeasData.map(idea => {
+        const title = idea.title.length > 20 ? idea.title.slice(0, 20) + '...' : idea.title;
+        return title;
+    });
+    
+    const votes = topIdeasData.map(idea => idea.votes_count);
+    const totalVotes = votes.reduce((sum, count) => sum + count, 0);
+    
+    // Couleurs pour le graphique
+    const colors = [
+        '#FFD700', // Or pour la 1ère place
+        '#C0C0C0', // Argent pour la 2ème place
+        '#CD7F32', // Bronze pour la 3ème place
+        '#87CEEB', // Bleu ciel pour la 4ème place
+        '#DDA0DD'  // Violet pour la 5ème place
+    ];
+    
+    // Créer le graphique seulement s'il y a des votes
+    if (totalVotes > 0) {
+        new Chart(votesPieCtx, {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: votes,
+                    backgroundColor: colors.slice(0, votes.length),
+                    borderColor: '#ffffff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                aspectRatio: 1,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            font: {
+                                size: 11
+                            },
+                            generateLabels: function(chart) {
+                                const data = chart.data;
+                                return data.labels.map((label, index) => {
+                                    const value = data.datasets[0].data[index];
+                                    const percentage = totalVotes > 0 ? ((value / totalVotes) * 100).toFixed(1) : 0;
+                                    return {
+                                        text: `${label} (${percentage}%)`,
+                                        fillStyle: data.datasets[0].backgroundColor[index],
+                                        hidden: false,
+                                        index: index
+                                    };
+                                });
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.raw;
+                                const percentage = totalVotes > 0 ? ((value / totalVotes) * 100).toFixed(1) : 0;
+                                return `${context.label}: ${value} votes (${percentage}%)`;
+                            }
+                        }
+                    }
+                },
+                layout: {
+                    padding: {
+                        top: 10,
+                        bottom: 10
+                    }
+                }
+            }
+        });
+    } else {
+        // Afficher un message si aucun vote
+        votesPieCtx.parentElement.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="bi bi-pie-chart" style="font-size: 3rem;"></i>
+                <p class="mt-2 mb-0">Aucun vote pour le moment</p>
+                <small>Les votes apparaîtront ici une fois qu'ils seront comptabilisés</small>
+            </div>
+        `;
+    }
+}
+{% endif %}
+</script>
 {% endblock %}

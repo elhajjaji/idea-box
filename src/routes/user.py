@@ -181,12 +181,70 @@ async def subject_ideas(subject_id: str, request: Request, current_user: User = 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sujet non trouvé ou vous n'êtes pas attribué à ce sujet.")
     ideas = await get_ideas_by_subject(subject_id)
     
+    # DEBUG: Vérifier l'état des votes dans la base de données
+    print(f"DEBUG - Nombre d'idées trouvées: {len(ideas)}")
+    for idea in ideas:
+        print(f"DEBUG - Idée '{idea.title}': votes = {idea.votes}, type = {type(idea.votes)}")
+    
+    # Calculer les métriques de votes
+    total_votes = sum(len(idea.votes) for idea in ideas)
+    my_votes_count = sum(1 for idea in ideas if str(current_user.id) in idea.votes)
+    votes_remaining = max(0, subject.vote_limit - my_votes_count) if subject.vote_active else 0
+    
+    # Calculer les statistiques par idée
+    ideas_stats = []
+    for idea in ideas:
+        vote_count = len(idea.votes)
+        has_voted = str(current_user.id) in idea.votes
+        ideas_stats.append({
+            "idea": idea,
+            "vote_count": vote_count,
+            "has_voted": has_voted,
+            "vote_percentage": round((vote_count / len(subject.users_ids + subject.gestionnaires_ids)) * 100, 1) if (subject.users_ids + subject.gestionnaires_ids) else 0
+        })
+    
+    # Métriques de participation
+    total_participants = len(set(subject.users_ids + subject.gestionnaires_ids))
+    participants_who_voted = len(set(vote for idea in ideas for vote in idea.votes))
+    participation_rate = round((participants_who_voted / total_participants) * 100, 1) if total_participants > 0 else 0
+    
+    # Top des idées (triées par nombre de votes)
+    top_ideas = sorted(ideas, key=lambda x: len(x.votes), reverse=True)
+    
+    # Enrichir les top_ideas avec l'information si l'utilisateur a voté
+    top_ideas_enriched = []
+    for idea in top_ideas:
+        votes_count = len(idea.votes) if idea.votes else 0
+        print(f"DEBUG - Idée '{idea.title}': {votes_count} votes - {idea.votes}")
+        top_ideas_enriched.append({
+            "id": str(idea.id),
+            "title": idea.title,
+            "description": idea.description,
+            "votes_count": votes_count,
+            "user_has_voted": str(current_user.id) in idea.votes
+        })
+    
+    metrics = {
+        "total_ideas": len(ideas),
+        "total_votes": total_votes,
+        "my_votes_count": my_votes_count,
+        "votes_remaining": votes_remaining,
+        "vote_limit": subject.vote_limit,
+        "total_participants": total_participants,
+        "participants_who_voted": participants_who_voted,
+        "participation_rate": participation_rate,
+        "most_voted_idea": max(ideas, key=lambda x: len(x.votes)) if ideas else None,
+        "average_votes_per_idea": round(total_votes / len(ideas), 2) if ideas else 0
+    }
+    
     from src.utils.template_helpers import add_organization_context
     context = await add_organization_context({
         "request": request, 
         "subject": subject, 
-        "ideas": ideas, 
-        "current_user": current_user
+        "ideas": ideas_stats, 
+        "current_user": current_user,
+        "metrics": metrics,
+        "top_ideas": top_ideas_enriched
     })
     return templates.TemplateResponse("user/subject_ideas.html", context)
 
@@ -587,3 +645,36 @@ async def submit_idea(
         from src.utils.flash_messages import flash
         flash(request, "Erreur lors de la soumission de l'idée.", "error")
         return RedirectResponse(url="/user/ideas/submit", status_code=303)
+
+from fastapi.responses import HTMLResponse
+from src.services.subject_service import get_subject
+
+@router.get("/user/ideas/create", response_class=HTMLResponse)
+async def create_idea_form(request: Request, subject_id: str, current_user: User = Depends(get_current_normal_user)):
+    subject = await get_subject(subject_id)
+    if not subject or (str(current_user.id) not in subject.users_ids and str(current_user.id) not in subject.gestionnaires_ids):
+        raise HTTPException(status_code=404, detail="Sujet non trouvé ou accès refusé.")
+    return templates.TemplateResponse("user/create_idea.html", {
+        "request": request,
+        "subject": subject,
+        "current_user": current_user,
+        "show_sidebar": True
+    })
+
+@router.post("/user/subject/{subject_id}/ideas/vote_batch")
+async def vote_batch_ideas(subject_id: str, request: Request, current_user: User = Depends(get_current_normal_user)):
+    form = await request.form()
+    idea_ids = form.getlist("idea_ids")
+    from src.services.idea_service import add_vote_to_idea
+    votes_added = 0
+    for idea_id in idea_ids:
+        try:
+            result = await add_vote_to_idea(idea_id, str(current_user.id))
+            if result:
+                votes_added += 1
+        except Exception as e:
+            print(f"Erreur lors du vote groupé pour l'idée {idea_id}: {e}")
+    if votes_added > 0:
+        from src.utils.flash_messages import flash
+        flash(request, f"{votes_added} vote(s) enregistré(s) avec succès.", "success")
+    return RedirectResponse(url=f"/user/subject/{subject_id}/ideas", status_code=303)

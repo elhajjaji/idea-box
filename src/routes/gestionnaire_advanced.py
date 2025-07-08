@@ -89,7 +89,13 @@ async def add_user_to_subject(subject_id: str, user_id: str = Form(...), request
     if user_id not in subject.users_ids:
         subject.users_ids.append(user_id)
         await Database.engine.save(subject)
-        await log_activity(subject_id, str(current_user.id), "user_added", f"Invité {user_id} ajouté au sujet")
+        await log_activity(
+            action="user_added",
+            subject_id=subject_id,
+            user=current_user,
+            description=f"Invité {user_id} ajouté au sujet",
+            request=request
+        )
     
     return RedirectResponse(url=f"/gestionnaire/subject/{subject_id}/users", status_code=status.HTTP_303_SEE_OTHER)
 
@@ -103,7 +109,13 @@ async def remove_user_from_subject(subject_id: str, user_id: str = Form(...), re
     if user_id in subject.users_ids:
         subject.users_ids.remove(user_id)
         await Database.engine.save(subject)
-        await log_activity(subject_id, str(current_user.id), "user_removed", f"Invité {user_id} retiré du sujet")
+        await log_activity(
+            action="user_removed",
+            subject_id=subject_id,
+            user=current_user,
+            description=f"Invité {user_id} retiré du sujet",
+            request=request
+        )
     
     return RedirectResponse(url=f"/gestionnaire/subject/{subject_id}/users", status_code=status.HTTP_303_SEE_OTHER)
 
@@ -129,25 +141,43 @@ async def bulk_ideas_management(request: Request, current_user: User = Depends(g
     """Page de modification en masse des idées"""
     subjects = await get_subjects_by_gestionnaire(str(current_user.id))
     
+    # Récupérer tous les utilisateurs pour éviter les requêtes répétées
+    from src.services.user_service import get_user
+    all_users = await get_users()
+    users_dict = {str(user.id): user for user in all_users}
+    
     all_ideas = []
     for subject in subjects:
         ideas = await get_ideas_by_subject(str(subject.id))
         for idea in ideas:
+            # Récupérer les informations de l'auteur
+            author = users_dict.get(idea.user_id)
+            author_email = author.email if author else "Email inconnu"
+            
             # Add subject info without modifying the model
             idea_dict = {
                 "idea": idea,
                 "subject_name": subject.name,
-                "subject_id": str(subject.id)
+                "subject_id": str(subject.id),
+                "show_votes_during_vote": subject.show_votes_during_vote,
+                "author_email": author_email
             }
             all_ideas.append(idea_dict)
     
-    return templates.TemplateResponse("gestionnaire/bulk_ideas.html", {
+    # Préparer le contexte avec les informations de l'organisation
+    from src.utils.template_helpers import add_organization_context
+    context = {
         "request": request,
         "current_user": current_user,
         "subjects": subjects,
         "all_ideas": all_ideas,
         "show_sidebar": True
-    })
+    }
+    
+    # Ajouter les informations de l'organisation
+    context = await add_organization_context(context)
+    
+    return templates.TemplateResponse("gestionnaire/bulk_ideas.html", context)
 
 @router.post("/gestionnaire/ideas/bulk/update")
 async def bulk_update_ideas(request: Request, current_user: User = Depends(get_current_gestionnaire)):
@@ -159,19 +189,30 @@ async def bulk_update_ideas(request: Request, current_user: User = Depends(get_c
         if key.startswith("idea_") and key.endswith("_title"):
             idea_id = key.replace("idea_", "").replace("_title", "")
             
-            # Récupérer l'idée
-            idea = await Database.engine.find_one({"_id": idea_id})
+            # Récupérer l'idée en utilisant le service approprié
+            from src.services.idea_service import get_idea
+            idea = await get_idea(idea_id)
             if idea:
                 # Vérifier que l'utilisateur a les droits sur le sujet de cette idée
                 subject = await get_subject(idea.subject_id)
                 if subject and str(current_user.id) in subject.gestionnaires_ids:
-                    idea.title = value
-                    if f"idea_{idea_id}_description" in form:
-                        idea.description = form[f"idea_{idea_id}_description"]
+                    # Préparer les nouvelles valeurs
+                    new_title = value
+                    new_description = form.get(f"idea_{idea_id}_description", idea.description)
                     
-                    await Database.engine.save(idea)
-                    await log_activity(idea.subject_id, str(current_user.id), "idea_updated", f"Idée {idea_id} mise à jour en masse")
-                    updated_count += 1
+                    # Utiliser la fonction update_idea du service
+                    updated_idea = await update_idea(idea_id, new_title, new_description)
+                    
+                    if updated_idea:
+                        await log_activity(
+                            action="idea_updated",
+                            subject_id=idea.subject_id,
+                            user=current_user,
+                            description=f"Idée '{new_title}' mise à jour en masse",
+                            details=f"Titre: '{new_title}', Description: '{new_description[:100]}...'",
+                            request=request
+                        )
+                        updated_count += 1
     
     return RedirectResponse(url=f"/gestionnaire/ideas/bulk?updated={updated_count}", status_code=status.HTTP_303_SEE_OTHER)
 
@@ -186,7 +227,13 @@ async def toggle_emission(subject_id: str, request: Request, current_user: User 
     await Database.engine.save(subject)
     
     action = "activated" if subject.emission_active else "deactivated"
-    await log_activity(subject_id, str(current_user.id), f"emission_{action}", f"Émission d'idées {action}")
+    await log_activity(
+        action=f"emission_{action}",
+        subject_id=subject_id,
+        user=current_user,
+        description=f"Émission d'idées {action}",
+        request=request
+    )
     
     return RedirectResponse(url=f"/gestionnaire/subject/{subject_id}/manage", status_code=status.HTTP_303_SEE_OTHER)
 
@@ -207,7 +254,13 @@ async def toggle_vote(subject_id: str, request: Request, current_user: User = De
         action = "deactivated"
     
     await Database.engine.save(subject)
-    await log_activity(subject_id, str(current_user.id), f"vote_{action}", f"Session de vote {action}")
+    await log_activity(
+        action=f"vote_{action}",
+        subject_id=subject_id,
+        user=current_user,
+        description=f"Session de vote {action}",
+        request=request
+    )
     
     return RedirectResponse(url=f"/gestionnaire/subject/{subject_id}/manage", status_code=status.HTTP_303_SEE_OTHER)
 

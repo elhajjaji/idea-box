@@ -311,9 +311,25 @@ async def edit_subject(subject_id: str, request: Request, name: str = Form(...),
 async def superadmin_users(request: Request, current_user: User = Depends(get_current_superadmin)):
     from src.utils.template_helpers import add_organization_context
     users = await get_users()
+    subjects = await Database.engine.find(Subject)
+    # Correction : Afficher les deux rôles même si c'est sur les mêmes sujets
+    user_subject_stats = {}
+    for user in users:
+        user_id = str(user.id)
+        managed_subjects = [s.name for s in subjects if user_id in s.gestionnaires_ids]
+        invited_subjects = [s.name for s in subjects if user_id in s.users_ids]
+        nb_gestionnaire = len(managed_subjects)
+        nb_invite = len(invited_subjects)
+        user_subject_stats[user_id] = {
+            "nb_gestionnaire": nb_gestionnaire,
+            "nb_invite": nb_invite,
+            "managed_subjects": managed_subjects,
+            "invited_subjects": invited_subjects
+        }
     context = await add_organization_context({
-        "request": request, 
-        "users": users, 
+        "request": request,
+        "users": users,
+        "user_subject_stats": user_subject_stats,
         "current_user": current_user
     })
     return templates.TemplateResponse("superadmin/users.html", context)

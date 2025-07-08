@@ -8,15 +8,267 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         :root {
-            --primary-color: {{ organization.primary_color if organization and organization.primary_color else '#4e73df' }};
-            --secondary-color: {{ organization.secondary_color if organization and organization.secondary_color else '#5a5c69' }};
-            --accent-color: {{ organization.accent_color if organization and organization.accent_color else '#1cc88a' }};
+            /* Thème par défaut (moderne, doux) */
+            --primary-color: #2563eb;   /* Bleu moderne */
+            --secondary-color: #64748b; /* Gris bleuté */
+            --success-color: #10b981;   /* Vert menthe */
+            --info-color: #0ea5e9;      /* Bleu clair */
+            --warning-color: #fbbf24;   /* Orange doux */
+            --danger-color: #ef4444;    /* Rouge moderne */
+            --light-color: #f3f4f6;     /* Gris très clair */
+            --dark-color: #1e293b;      /* Bleu nuit */
+        }
+        /* Thèmes alternatifs améliorés avec gestion des polices et couleurs de texte */
+        .theme-classic {
+            --primary-color: #4e73df;
+            --secondary-color: #858796;
             --success-color: #1cc88a;
             --info-color: #36b9cc;
             --warning-color: #f6c23e;
             --danger-color: #e74a3b;
             --light-color: #f8f9fc;
             --dark-color: #5a5c69;
+            --text-color: #5a5c69;
+            --text-muted: #858796;
+            --bg-color: #ffffff;
+        }
+        
+        .theme-dark {
+            --primary-color: #6366f1;
+            --secondary-color: #64748b;
+            --success-color: #22d3ee;
+            --info-color: #818cf8;
+            --warning-color: #fbbf24;
+            --danger-color: #f87171;
+            --light-color: #1e293b;
+            --dark-color: #0f172a;
+            --text-color: #f1f5f9;
+            --text-muted: #94a3b8;
+            --bg-color: #0f172a;
+        }
+        
+        .theme-nature {
+            --primary-color: #059669;
+            --secondary-color: #065f46;
+            --success-color: #10b981;
+            --info-color: #06b6d4;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --light-color: #f0fdf4;
+            --dark-color: #064e3b;
+            --text-color: #064e3b;
+            --text-muted: #6b7280;
+            --bg-color: #ffffff;
+        }
+        
+        .theme-sunset {
+            --primary-color: #ea580c;
+            --secondary-color: #f97316;
+            --success-color: #65a30d;
+            --info-color: #0ea5e9;
+            --warning-color: #eab308;
+            --danger-color: #dc2626;
+            --light-color: #fff7ed;
+            --dark-color: #9a3412;
+            --text-color: #9a3412;
+            --text-muted: #a3a3a3;
+            --bg-color: #ffffff;
+        }
+        
+        .theme-ocean {
+            --primary-color: #0284c7;
+            --secondary-color: #0369a1;
+            --success-color: #059669;
+            --info-color: #06b6d4;
+            --warning-color: #f59e0b;
+            --danger-color: #dc2626;
+            --light-color: #f0f9ff;
+            --dark-color: #0c4a6e;
+            --text-color: #0c4a6e;
+            --text-muted: #64748b;
+            --bg-color: #ffffff;
+        }
+        
+        .theme-royal {
+            --primary-color: #7c3aed;
+            --secondary-color: #a855f7;
+            --success-color: #059669;
+            --info-color: #3b82f6;
+            --warning-color: #f59e0b;
+            --danger-color: #dc2626;
+            --light-color: #faf5ff;
+            --dark-color: #581c87;
+            --text-color: #581c87;
+            --text-muted: #6b7280;
+            --bg-color: #ffffff;
+        }
+        
+        .theme-business {
+            --primary-color: #374151;
+            --secondary-color: #6b7280;
+            --success-color: #059669;
+            --info-color: #3b82f6;
+            --warning-color: #f59e0b;
+            --danger-color: #dc2626;
+            --light-color: #f9fafb;
+            --dark-color: #111827;
+            --text-color: #111827;
+            --text-muted: #6b7280;
+            --bg-color: #ffffff;
+        }
+        
+        .theme-rose {
+            --primary-color: #e11d48;
+            --secondary-color: #f43f5e;
+            --success-color: #059669;
+            --info-color: #3b82f6;
+            --warning-color: #f59e0b;
+            --danger-color: #dc2626;
+            --light-color: #fff1f2;
+            --dark-color: #881337;
+            --text-color: #881337;
+            --text-muted: #6b7280;
+            --bg-color: #ffffff;
+        }
+        
+        .theme-cyber {
+            --primary-color: #22d3ee;
+            --secondary-color: #06b6d4;
+            --success-color: #10b981;
+            --info-color: #8b5cf6;
+            --warning-color: #f59e0b;
+            --danger-color: #f43f5e;
+            --light-color: #0f172a;
+            --dark-color: #030712;
+            --text-color: #f0f9ff;
+            --text-muted: #64748b;
+            --bg-color: #0f172a;
+        }
+        
+        .theme-forest {
+            --primary-color: #365314;
+            --secondary-color: #4d7c0f;
+            --success-color: #16a34a;
+            --info-color: #0ea5e9;
+            --warning-color: #ca8a04;
+            --danger-color: #dc2626;
+            --light-color: #f7fee7;
+            --dark-color: #1a2e05;
+            --text-color: #1a2e05;
+            --text-muted: #65a30d;
+            --bg-color: #ffffff;
+        }
+        
+        /* Application des couleurs de texte pour tous les thèmes */
+        .theme-classic,
+        .theme-nature,
+        .theme-sunset,
+        .theme-ocean,
+        .theme-royal,
+        .theme-business,
+        .theme-rose,
+        .theme-forest {
+            color: var(--text-color);
+            background-color: var(--bg-color);
+        }
+        
+        .theme-dark,
+        .theme-cyber {
+            color: var(--text-color);
+            background-color: var(--bg-color);
+        }
+        
+        /* Styles pour les textes dans tous les thèmes */
+        .theme-classic .text-muted,
+        .theme-dark .text-muted,
+        .theme-nature .text-muted,
+        .theme-sunset .text-muted,
+        .theme-ocean .text-muted,
+        .theme-royal .text-muted,
+        .theme-business .text-muted,
+        .theme-rose .text-muted,
+        .theme-cyber .text-muted,
+        .theme-forest .text-muted {
+            color: var(--text-muted) !important;
+        }
+        
+        /* Adaptation des cartes pour les thèmes sombres */
+        .theme-dark .card,
+        .theme-cyber .card {
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-color);
+        }
+        
+        /* Adaptation des formulaires pour les thèmes sombres */
+        .theme-dark .form-control,
+        .theme-cyber .form-control {
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: var(--text-color);
+        }
+        
+        .theme-dark .form-control::placeholder,
+        .theme-cyber .form-control::placeholder {
+            color: var(--text-muted);
+        }
+        
+        /* Adaptation des dropdowns pour les thèmes sombres */
+        .theme-dark .dropdown-menu,
+        .theme-cyber .dropdown-menu {
+            background-color: var(--light-color);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .theme-dark .dropdown-item,
+        .theme-cyber .dropdown-item {
+            color: var(--text-color);
+        }
+        
+        .theme-dark .dropdown-item:hover,
+        .theme-cyber .dropdown-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Adaptation des tableaux pour les thèmes sombres */
+        .theme-dark .table,
+        .theme-cyber .table {
+            color: var(--text-color);
+        }
+        
+        .theme-dark .table-striped tbody tr:nth-of-type(odd),
+        .theme-cyber .table-striped tbody tr:nth-of-type(odd) {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+        
+        /* Adaptation des alertes pour tous les thèmes */
+        .theme-dark .alert,
+        .theme-cyber .alert {
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .theme-dark .alert-info,
+        .theme-cyber .alert-info {
+            background-color: rgba(129, 140, 248, 0.1);
+            color: var(--info-color);
+        }
+        
+        .theme-dark .alert-success,
+        .theme-cyber .alert-success {
+            background-color: rgba(34, 211, 238, 0.1);
+            color: var(--success-color);
+        }
+        
+        .theme-dark .alert-warning,
+        .theme-cyber .alert-warning {
+            background-color: rgba(251, 191, 36, 0.1);
+            color: var(--warning-color);
+        }
+        
+        .theme-dark .alert-danger,
+        .theme-cyber .alert-danger {
+            background-color: rgba(248, 113, 113, 0.1);
+            color: var(--danger-color);
         }
         
         .navbar-brand {
@@ -35,7 +287,7 @@
             min-height: 100vh;
             position: fixed;
             left: 0;
-            top: 76px;
+            top: 130px; /* Augmenté de 76px à 130px pour laisser place à la barre horizontale */
             bottom: 0;
             z-index: 1010;
             transition: all 0.3s ease;
@@ -464,6 +716,36 @@
             transform: scale(1.1);
         }
     </style>
+    <!-- Sélecteur de thème repositionné pour éviter les conflits -->
+    <div class="dropdown position-fixed" style="top: 80px; right: 20px; z-index: 1035;">
+      <button class="btn btn-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="bi bi-palette me-1"></i> Thème
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li><a class="dropdown-item" href="#" onclick="setTheme('')">🌟 Moderne (par défaut)</a></li>
+        <li><a class="dropdown-item" href="#" onclick="setTheme('theme-classic')">🏢 Classique</a></li>
+        <li><a class="dropdown-item" href="#" onclick="setTheme('theme-dark')">🌙 Sombre</a></li>
+        <li><a class="dropdown-item" href="#" onclick="setTheme('theme-nature')">🌿 Nature</a></li>
+        <li><a class="dropdown-item" href="#" onclick="setTheme('theme-sunset')">🌅 Coucher de soleil</a></li>
+        <li><a class="dropdown-item" href="#" onclick="setTheme('theme-ocean')">🌊 Océan</a></li>
+        <li><a class="dropdown-item" href="#" onclick="setTheme('theme-royal')">👑 Royal</a></li>
+        <li><a class="dropdown-item" href="#" onclick="setTheme('theme-business')">💼 Business</a></li>
+        <li><a class="dropdown-item" href="#" onclick="setTheme('theme-rose')">🌹 Rose</a></li>
+        <li><a class="dropdown-item" href="#" onclick="setTheme('theme-cyber')">🚀 Cyber</a></li>
+        <li><a class="dropdown-item" href="#" onclick="setTheme('theme-forest')">🌲 Forêt</a></li>
+      </ul>
+    </div>
+    <script>
+      function setTheme(theme) {
+        document.body.className = theme;
+        localStorage.setItem('theme', theme);
+      }
+      // Au chargement, appliquer le thème sauvegardé
+      document.addEventListener('DOMContentLoaded', function() {
+        const theme = localStorage.getItem('theme') || '';
+        document.body.className = theme;
+      });
+    </script>
 </head>
 <body class="{% if not show_sidebar %}no-sidebar{% endif %}">
     <!-- Navigation principale -->
@@ -485,7 +767,7 @@
                     </div>
                     {% if organization and organization.description %}
                         <div class="small opacity-75" style="font-size: 0.8rem; margin-top: -2px;">
-                            {{ organization.description }}
+                            {{ organization.description | safe }}
                         </div>
                     {% endif %}
                 </div>

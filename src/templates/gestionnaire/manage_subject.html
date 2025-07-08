@@ -156,6 +156,7 @@
 </div>
 
 <!-- Top des idées -->
+{% if ideas and not subject.vote_active and not subject.emission_active %}
 <div class="card mb-4">
     <div class="card-header">
         <h5 class="card-title mb-0">
@@ -163,82 +164,203 @@
         </h5>
     </div>
     <div class="card-body">
-        {% if ideas %}
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Rang</th>
-                            <th>Idée</th>
-                            <th>Votes</th>
-                            <th>Auteur</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for idea in ideas[:5] %}
-                        <tr>
-                            <td>
-                                <span class="badge bg-{% if loop.index == 1 %}warning{% elif loop.index == 2 %}secondary{% elif loop.index == 3 %}info{% else %}light{% endif %}">
-                                    #{{ loop.index }}
-                                </span>
-                            </td>
-                            <td>{{ idea.title }}</td>
-                            <td>
-                                <span class="badge bg-success">{{ idea.votes|length }}</span>
-                            </td>
-                            <td>{{ idea.user_id }}</td>
-                            <td>
-                                <button class="btn btn-sm btn-outline-primary" onclick="viewIdea('{{ idea.id }}')">
-                                    <i class="bi bi-eye"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        <div class="table-responsive mb-4">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Rang</th>
+                        <th>Idée</th>
+                        <th>Votes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for idea in ideas[:5] %}
+                    <tr>
+                        <td>
+                            <span class="badge bg-{% if loop.index == 1 %}warning{% elif loop.index == 2 %}secondary{% elif loop.index == 3 %}info{% else %}light{% endif %}">#{{ loop.index }}</span>
+                        </td>
+                        <td>{{ idea.title }}</td>
+                        <td><span class="badge bg-success">{{ idea.votes|length }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <!-- Graphique barres votes/idéé -->
+        <div class="mb-4">
+            <canvas id="ideasVotesChart" height="120"></canvas>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <canvas id="votersPieChart" height="180"></canvas>
             </div>
-        {% else %}
-            <div class="text-center py-3">
-                <i class="bi bi-lightbulb text-muted" style="font-size: 2rem;"></i>
-                <p class="text-muted mt-2">Aucune idée soumise pour le moment</p>
+            <div class="col-md-6 mb-3">
+                <canvas id="multiVotesPieChart" height="180"></canvas>
             </div>
-        {% endif %}
+        </div>
+    </div>
+</div>
+{% elif subject.vote_active or subject.emission_active %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="bi bi-trophy me-2"></i>Top des idées les plus votées
+        </h5>
+    </div>
+    <div class="card-body text-center py-5">
+        <i class="bi bi-lock text-muted" style="font-size: 3rem;"></i>
+        <h5 class="mt-3 text-muted">Résultats masqués</h5>
+        <p class="text-muted">
+            {% if subject.vote_active %}
+                <strong>Session de vote active :</strong> Les résultats seront visibles une fois la session terminée.
+            {% elif subject.emission_active %}
+                <strong>Émission d'idées active :</strong> Les résultats seront visibles une fois l'émission désactivée.
+            {% endif %}
+        </p>
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            <strong>Note gestionnaire :</strong> Vous pouvez voir les statuts en temps réel dans les contrôles ci-dessus.
+        </div>
+    </div>
+</div>
+{% elif ideas %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="bi bi-trophy me-2"></i>Top des idées les plus votées
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="text-center py-3">
+            <i class="bi bi-lightbulb text-muted" style="font-size: 2rem;"></i>
+            <p class="text-muted mt-2">Aucune idée soumise pour le moment</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Formulaire d'édition du sujet (pour les gestionnaires) -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="bi bi-pencil me-2"></i>Éditer le sujet
+        </h5>
+    </div>
+    <div class="card-body">
+        <form method="post" action="/gestionnaire/subject/{{ subject.id }}/edit">
+            <div class="mb-3">
+                <label for="subjectName" class="form-label">Nom du sujet</label>
+                <input type="text" class="form-control" id="subjectName" name="name" value="{{ subject.name }}" required>
+            </div>
+            <div class="mb-3">
+                <label for="subjectDescription" class="form-label">Description du sujet</label>
+                <textarea class="form-control" id="subjectDescription" name="description" rows="3" required>{{ subject.description }}</textarea>
+            </div>
+            <div class="mb-3">
+                <label for="voteLimit" class="form-label">Limite de votes par utilisateur</label>
+                <input type="number" class="form-control" id="voteLimit" name="vote_limit" value="{{ subject.vote_limit }}" min="1" required>
+            </div>
+            <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="showVotesDuringVote" name="show_votes_during_vote" value="1" {% if subject.show_votes_during_vote %}checked{% endif %}>
+                <label class="form-check-label" for="showVotesDuringVote">
+                    Afficher le nombre de votes pour chaque idée pendant la session de vote
+                </label>
+            </div>
+            <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </form>
     </div>
 </div>
 
 {% endblock %}
 
 {% block scripts %}
-{% include "charts_base.html" %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-function viewIdea(ideaId) {
-    console.log('Voir idée:', ideaId);
+const ideas = {{ ideas[:10]|tojson }};
+const subjectUsersCount = {{ subject.users_ids|length }};
+// Barres votes/idéé
+const ctx = document.getElementById('ideasVotesChart');
+if (ctx && ideas.length > 0) {
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ideas.map(i => i.title.length > 30 ? i.title.slice(0, 30) + '…' : i.title),
+            datasets: [{
+                label: 'Votes',
+                data: ideas.map(i => i.votes.length),
+                backgroundColor: '#2563eb',
+                borderRadius: 6
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: true }
+            },
+            scales: {
+                x: { beginAtZero: true, ticks: { precision:0 } },
+                y: { ticks: { font: { size: 13 } } }
+            },
+            responsive: true,
+            maintainAspectRatio: false,
+        }
+    });
 }
-
-// Variables globales pour la suppression
-let currentIdeaId = '';
-
-// Fonction pour réinitialiser un formulaire
-function resetForm(ideaId) {
-    const form = document.querySelector(`#collapse${ideaId.split('_')[0]} form`);
-    if (form) {
-        form.reset();
-        window.location.reload();
-    }
+// Stats votants/non-votants
+const allVoters = new Set();
+ideas.forEach(i => i.votes.forEach(v => allVoters.add(v)));
+const nbVotants = allVoters.size;
+const nbNonVotants = Math.max(subjectUsersCount - nbVotants, 0);
+const votersPie = document.getElementById('votersPieChart');
+if (votersPie) {
+    new Chart(votersPie, {
+        type: 'doughnut',
+        data: {
+            labels: ['Votants', 'Non votants'],
+            datasets: [{
+                data: [nbVotants, nbNonVotants],
+                backgroundColor: ['#22c55e', '#e5e7eb'],
+            }]
+        },
+        options: {
+            plugins: {
+                legend: { display: true, position: 'bottom' },
+                tooltip: { enabled: true }
+            },
+            cutout: '70%',
+            responsive: true,
+            maintainAspectRatio: false,
+        }
+    });
 }
-
-// Fonction pour confirmer la suppression
-function confirmDelete(ideaId, ideaTitle) {
-    currentIdeaId = ideaId;
-    document.getElementById('ideaToDelete').textContent = ideaTitle;
-    
-    document.getElementById('confirmDeleteBtn').onclick = function() {
-        document.getElementById('deleteForm_' + ideaId).submit();
-    };
-    
-    const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
-    deleteModal.show();
+// Stats plusieurs votes
+const voteCounts = {};
+ideas.forEach(i => i.votes.forEach(v => { voteCounts[v] = (voteCounts[v]||0)+1; }));
+let multiVoters = 0, singleVoters = 0;
+Object.values(voteCounts).forEach(c => c > 1 ? multiVoters++ : singleVoters++);
+const multiVotesPie = document.getElementById('multiVotesPieChart');
+if (multiVotesPie) {
+    new Chart(multiVotesPie, {
+        type: 'doughnut',
+        data: {
+            labels: ['Plusieurs votes', 'Un seul vote'],
+            datasets: [{
+                data: [multiVoters, singleVoters],
+                backgroundColor: ['#f59e42', '#60a5fa'],
+            }]
+        },
+        options: {
+            plugins: {
+                legend: { display: true, position: 'bottom' },
+                tooltip: { enabled: true }
+            },
+            cutout: '70%',
+            responsive: true,
+            maintainAspectRatio: false,
+        }
+    });
 }
 
 // Auto-resize des textareas

@@ -26,7 +26,7 @@
     </div>
     <div class="card-body">
         <div class="row">
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <label for="filterSubject" class="form-label">Filtrer par sujet</label>
                 <select class="form-select" id="filterSubject" onchange="filterIdeas()">
                     <option value="">Tous les sujets</option>
@@ -35,15 +35,11 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3">
-                <label for="filterVotes" class="form-label">Minimum de votes</label>
-                <input type="number" class="form-control" id="filterVotes" placeholder="0" onchange="filterIdeas()">
-            </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <label for="searchText" class="form-label">Rechercher</label>
                 <input type="text" class="form-control" id="searchText" placeholder="Titre ou description..." onkeyup="filterIdeas()">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <label class="form-label">&nbsp;</label>
                 <div class="d-flex gap-2">
                     <button type="button" class="btn btn-outline-primary" onclick="selectAll()">
@@ -71,9 +67,6 @@
                 <div class="btn-group" role="group">
                     <button type="button" class="btn btn-outline-primary" onclick="bulkEdit()">
                         <i class="bi bi-pencil me-2"></i>Modifier sélectionnées
-                    </button>
-                    <button type="button" class="btn btn-outline-warning" onclick="bulkChangeStatus()">
-                        <i class="bi bi-toggle2-off me-2"></i>Changer le statut
                     </button>
                     <button type="button" class="btn btn-outline-danger" onclick="bulkDelete()">
                         <i class="bi bi-trash me-2"></i>Supprimer sélectionnées
@@ -107,14 +100,12 @@
                                 <th>Sujet</th>
                                 <th>Titre</th>
                                 <th>Description</th>
-                                <th>Votes</th>
                                 <th>Auteur</th>
-                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for idea_data in all_ideas %}
-                            <tr class="idea-row" data-subject="{{ idea_data.subject_id }}" data-votes="{{ idea_data.idea.votes|length }}" data-search="{{ idea_data.idea.title|lower }} {{ idea_data.idea.description|lower }}">
+                            <tr class="idea-row" data-subject="{{ idea_data.subject_id }}" data-search="{{ idea_data.idea.title|lower }} {{ idea_data.idea.description|lower }}">
                                 <td>
                                     <input type="checkbox" class="idea-checkbox" value="{{ idea_data.idea.id }}" onchange="updateSelectedCount()">
                                 </td>
@@ -128,20 +119,7 @@
                                     <textarea class="form-control form-control-sm" name="idea_{{ idea_data.idea.id }}_description" rows="2" readonly>{{ idea_data.idea.description or '' }}</textarea>
                                 </td>
                                 <td>
-                                    <span class="badge bg-success">{{ idea_data.idea.votes|length }}</span>
-                                </td>
-                                <td>
-                                    <small class="text-muted">{{ idea_data.idea.user_id }}</small>
-                                </td>
-                                <td>
-                                    <div class="btn-group">
-                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="editIdea('{{ idea_data.idea.id }}')">
-                                            <i class="bi bi-pencil"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-sm btn-outline-info" onclick="viewIdea('{{ idea_data.idea.id }}')">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-                                    </div>
+                                    <small class="text-muted">{{ idea_data.author_email }}</small>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -173,21 +151,18 @@ let editMode = false;
 
 function filterIdeas() {
     const subjectFilter = document.getElementById('filterSubject').value;
-    const votesFilter = parseInt(document.getElementById('filterVotes').value) || 0;
     const searchFilter = document.getElementById('searchText').value.toLowerCase();
     
     const rows = document.querySelectorAll('.idea-row');
     
     rows.forEach(row => {
         const subject = row.dataset.subject;
-        const votes = parseInt(row.dataset.votes);
         const searchText = row.dataset.search;
         
         const matchesSubject = !subjectFilter || subject === subjectFilter;
-        const matchesVotes = votes >= votesFilter;
         const matchesSearch = !searchFilter || searchText.includes(searchFilter);
         
-        if (matchesSubject && matchesVotes && matchesSearch) {
+        if (matchesSubject && matchesSearch) {
             row.style.display = '';
         } else {
             row.style.display = 'none';
@@ -262,15 +237,6 @@ function editIdea(ideaId) {
 function viewIdea(ideaId) {
     console.log('Voir idée:', ideaId);
     // Implémenter la logique pour voir l'idée
-}
-
-function bulkChangeStatus() {
-    const selectedBoxes = document.querySelectorAll('.idea-checkbox:checked');
-    if (selectedBoxes.length === 0) {
-        alert('Veuillez sélectionner au moins une idée.');
-        return;
-    }
-    console.log('Changer le statut de', selectedBoxes.length, 'idées');
 }
 
 function bulkDelete() {

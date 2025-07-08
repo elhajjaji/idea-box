@@ -167,7 +167,9 @@ async def manage_subject_users_form(subject_id: str, request: Request, current_u
         for user in available_users
     ]
 
-    return templates.TemplateResponse("gestionnaire/manage_users.html", {
+    # Préparer le contexte avec les informations de l'organisation
+    from src.utils.template_helpers import add_organization_context
+    context = {
         "request": request, 
         "subject": subject, 
         "subject_users": subject_users, 
@@ -177,7 +179,12 @@ async def manage_subject_users_form(subject_id: str, request: Request, current_u
         "available_users_dict": available_users_dict,
         "current_user": current_user,
         "show_sidebar": True
-    })
+    }
+    
+    # Ajouter les informations de l'organisation
+    context = await add_organization_context(context)
+    
+    return templates.TemplateResponse("gestionnaire/manage_users.html", context)
 
 @router.post("/gestionnaire/subject/{subject_id}/add_user")
 async def add_user_to_subject_route(subject_id: str, request: Request, current_user: User = Depends(get_current_gestionnaire), user_id: str = Form(...)):
@@ -625,6 +632,10 @@ async def manage_subject(subject_id: str, request: Request, current_user: User =
     from src.services.user_service import get_user
     ideas = await get_ideas_by_subject(subject_id)
     
+    # Récupérer les utilisateurs du sujet
+    all_users = await get_users()
+    subject_users = [user for user in all_users if str(user.id) in subject.users_ids]
+    
     # Convertir les idées en dictionnaires enrichis
     enriched_ideas = []
     for idea in ideas:
@@ -644,16 +655,18 @@ async def manage_subject(subject_id: str, request: Request, current_user: User =
             "author_id": idea.user_id,
             "votes_count": len(idea.votes),
             "votes": idea.votes,
-            "created_at": idea.created_at,
+            # "created_at": idea.created_at,  # On ne le met pas pour éviter l'erreur JSON
             "subject_id": idea.subject_id
         }
         
         enriched_ideas.append(idea_dict)
-    
+    # TRIER par nombre de votes décroissant
+    enriched_ideas.sort(key=lambda i: len(i["votes"]), reverse=True)
     return templates.TemplateResponse("gestionnaire/manage_subject.html", {
         "request": request,
         "subject": subject,
         "ideas": enriched_ideas,
+        "subject_users": subject_users,
         "current_user": current_user,
         "show_sidebar": True
     })
@@ -863,13 +876,17 @@ async def manage_subjects_overview(request: Request, current_user: User = Depend
                 "status": "Émission" if subject.emission_active else "Vote" if subject.vote_active else "Fermé"
             })
         
-        return templates.TemplateResponse("gestionnaire/manage_subjects_overview.html", {
+        # Préparer le contexte avec les informations de l'organisation
+        from src.utils.template_helpers import add_organization_context
+        context = {
             "request": request,
             "current_user": current_user,
             "subjects": enriched_subjects,
             "subjects_count": len(subjects),
             "show_sidebar": True
-        })
+        }
+        context = await add_organization_context(context)
+        return templates.TemplateResponse("gestionnaire/manage_subjects_overview.html", context)
     except Exception as e:
         print(f"❌ Erreur gestion rapide sujets: {e}")
         return templates.TemplateResponse("gestionnaire/manage_subjects_overview.html", {
@@ -915,3 +932,27 @@ async def manage_users_overview(request: Request, current_user: User = Depends(g
             "subjects_count": 0,
             "show_sidebar": True
         })
+
+@router.post("/gestionnaire/subject/{subject_id}/edit")
+async def edit_subject(
+    subject_id: str,
+    request: Request,
+    current_user: User = Depends(get_current_gestionnaire),
+    name: str = Form(...),
+    description: str = Form(...),
+    vote_limit: int = Form(...),
+    show_votes_during_vote: Optional[str] = Form(None)
+):
+    subject = await get_subject(subject_id)
+    if not subject or str(current_user.id) not in subject.gestionnaires_ids:
+        raise HTTPException(status_code=404, detail="Sujet non trouvé ou vous n'êtes pas gestionnaire de ce sujet.")
+    # Mettre à jour les champs
+    subject.name = name.strip()
+    subject.description = description.strip()
+    subject.vote_limit = vote_limit
+    subject.show_votes_during_vote = bool(show_votes_during_vote)
+    # Sauvegarder les modifications
+    await Database.engine.save(subject)
+    # Message de succès
+    request.session["success_message"] = "Sujet mis à jour avec succès."
+    return RedirectResponse(url=f"/gestionnaire/subject/{subject_id}/manage", status_code=303)

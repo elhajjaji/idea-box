@@ -30,7 +30,26 @@
                             <td>{{ user.email }}</td>
                             <td>{{ user.nom }}</td>
                             <td>{{ user.prenom }}</td>
-                            <td>{{ user.roles | join(', ') }}</td>
+                            <td>
+                                {% set stats = user_subject_stats[user.id|string] %}
+                                {% if stats.nb_invite > 0 %}
+                                  <span class="role-hover" 
+                                        data-user-id="{{ user.id }}" 
+                                        data-role="invite"
+                                        title="Invité sur : {{ user_subject_stats[user.id|string].invited_subjects|join(', ') }}">
+                                    <span style="font-style:italic;font-weight:bold;">{{ stats.nb_invite }}</span> Invité
+                                  </span>
+                                {% endif %}
+                                {% if stats.nb_gestionnaire > 0 %}
+                                  {% if stats.nb_invite > 0 %}, {% endif %}
+                                  <span class="role-hover" 
+                                        data-user-id="{{ user.id }}" 
+                                        data-role="gestionnaire"
+                                        title="Sujets gérés : {{ user_subject_stats[user.id|string].managed_subjects|join(', ') }}">
+                                    <span style="font-style:italic;font-weight:bold;">{{ stats.nb_gestionnaire }}</span> Gestionnaire
+                                  </span>
+                                {% endif %}
+                            </td>
                             <td>
                                 <a href="/superadmin/users/{{ user.id }}/edit" class="btn btn-sm btn-outline-primary">Modifier</a>
                             </td>
@@ -41,4 +60,18 @@
         </div>
     </div>
 </div>
+<script>
+const userSubjects = {
+  {% for user in users %}
+    '{{ user.id }}': {
+      invites: [
+        {% for s in user_subject_stats[user.id|string].invited_subjects %}'{{ s }}',{% endfor %}
+      ],
+      gestionnaire: [
+        {% for s in user_subject_stats[user.id|string].managed_subjects %}'{{ s }}',{% endfor %}
+      ]
+    },
+  {% endfor %}
+};
+</script>
 {% endblock %}

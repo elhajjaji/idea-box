@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Nouvelle idée - {{ subject.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-lightbulb me-2"></i>Soumettre une nouvelle idée pour le sujet :
+                        <span class="fw-bold">{{ subject.name }}</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="/user/subject/{{ subject.id }}/ideas/create">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Titre de l'idée</label>
+                            <input type="text" class="form-control" id="title" name="title" required maxlength="120">
+                        </div>
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description (optionnelle)</label>
+                            <textarea class="form-control" id="description" name="description" rows="4" maxlength="1000"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-send me-1"></i>Soumettre l'idée
+                        </button>
+                        <a href="/user/subject/{{ subject.id }}/ideas" class="btn btn-secondary ms-2">
+                            <i class="bi bi-arrow-left me-1"></i>Retour aux idées
+                        </a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

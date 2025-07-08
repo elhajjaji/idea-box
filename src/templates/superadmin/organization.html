@@ -108,10 +108,12 @@
                         <label for="description" class="form-label">
                             <strong>Description / Slogan</strong>
                         </label>
-                        <input type="text" class="form-control" id="description" name="description" 
-                               value="{{ organization.description if organization.description else '' }}" 
-                               maxlength="500">
-                        <div class="form-text">Description courte ou slogan</div>
+                        <textarea class="form-control" id="description" name="description" 
+                                  rows="4" maxlength="1000"
+                                  placeholder="Vous pouvez utiliser du HTML : &lt;br&gt; pour retour à la ligne, &lt;em&gt; pour italique, &lt;strong&gt; pour gras...">{{ organization.description if organization.description else '' }}</textarea>
+                        <div class="form-text">
+                            Description courte ou slogan - HTML autorisé (&lt;br&gt;, &lt;em&gt;, &lt;strong&gt;, &lt;p&gt;, etc.)
+                        </div>
                     </div>
                 </div>
             </div>
