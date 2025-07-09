@@ -150,3 +150,6 @@ data/
 .env.development
 .env.test
 .env.production
+
+# les fichier de demo
+demo_**

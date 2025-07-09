@@ -53,26 +53,67 @@ async def get_current_normal_user(request: Request, current_user: User = Depends
         )
     return current_user
 
-async def get_vote_subjects_for_user(user_id: str):
+async def get_vote_subjects_for_user(user_id: str, request=None):
     """Récupère les sujets avec vote actif pour un utilisateur donné (retourne des dicts enrichis)"""
     try:
         all_subjects = await Database.engine.find(Subject)
         vote_subjects = []
+        
+        # Récupérer les préférences utilisateur si la request est fournie
+        selected_subject_ids = None
+        if request:
+            user_preferences = request.session.get("subject_preferences", {})
+            selected_subject_ids = user_preferences.get(user_id, [])
+            print(f"DEBUG - Préférences vote pour utilisateur {user_id}: {selected_subject_ids}")
+        
         from src.services.idea_service import get_ideas_by_subject
         for subject in all_subjects:
             if hasattr(subject, 'vote_active') and subject.vote_active and (user_id in subject.users_ids or user_id in subject.gestionnaires_ids):
-                ideas = await get_ideas_by_subject(subject.id)
-                total_votes = 0
-                for idea in ideas:
-                    votes_count = await VoteService.get_votes_count_for_idea(str(idea.id))
-                    total_votes += votes_count
+                # Si l'utilisateur a des préférences définies, vérifier si ce sujet est sélectionné
+                if selected_subject_ids and str(subject.id) not in selected_subject_ids:
+                    print(f"DEBUG - Sujet {subject.name} ignoré car pas dans les préférences")
+                    continue
                 
-                vote_subjects.append({
-                    "subject": subject,
-                    "ideas": ideas,
-                    "ideas_count": len(ideas),
-                    "votes_count": total_votes
-                })
+                # Vérifier si l'utilisateur peut encore voter pour ce sujet
+                user_votes_count = await VoteService.get_user_votes_count_for_subject(user_id, subject.id)
+                vote_limit = getattr(subject, 'vote_limit', 0)
+                
+                # Ne retourner le sujet que si l'utilisateur peut encore voter
+                if vote_limit > 0 and user_votes_count < vote_limit:
+                    ideas = await get_ideas_by_subject(subject.id)
+                    total_votes = 0
+                    
+                    # Enrichir chaque idée avec les informations de votes
+                    enriched_ideas = []
+                    for idea in ideas:
+                        votes_count = await VoteService.get_votes_count_for_idea(str(idea.id))
+                        total_votes += votes_count
+                        
+                        # Récupérer les IDs des votants pour cette idée
+                        voter_ids = await VoteService.get_voter_ids_for_idea(str(idea.id))
+                        
+                        # Créer un objet dict avec toutes les propriétés de l'idée + votes
+                        idea_dict = {
+                            "id": idea.id,
+                            "subject_id": idea.subject_id,
+                            "user_id": idea.user_id,
+                            "title": idea.title,
+                            "description": idea.description,
+                            "created_at": idea.created_at,
+                            "votes": voter_ids,  # Liste des IDs des votants (compatibilité template)
+                            "votes_count": votes_count
+                        }
+                        enriched_ideas.append(idea_dict)
+                    
+                    print(f"DEBUG - Sujet de vote ajouté: {subject.name} avec {len(enriched_ideas)} idées")
+                    vote_subjects.append({
+                        "subject": subject,
+                        "ideas": enriched_ideas,
+                        "ideas_count": len(enriched_ideas),
+                        "votes_count": total_votes
+                    })
+        
+        print(f"DEBUG - Nombre total de sujets de vote retournés: {len(vote_subjects)}")
         return vote_subjects
     except Exception as e:
         print(f"❌ Erreur lors de la récupération des sujets de vote: {e}")
@@ -113,19 +154,30 @@ async def user_dashboard(request: Request, current_user: User = Depends(get_curr
         # Récupérer les métriques pour l'utilisateur
         metrics = await MetricsService.get_user_dashboard_metrics(current_user)
         
-        user_subjects, user_stats = await get_user_dashboard_stats(current_user)
+        all_user_subjects, user_subjects, user_stats, user_preferences = await get_user_dashboard_stats(current_user, request)
         
-        # Récupérer les sujets avec vote actif
-        vote_subjects = await get_vote_subjects_for_user(str(current_user.id))
+        print(f"DEBUG Dashboard - Tous les sujets: {len(all_user_subjects)}")
+        print(f"DEBUG Dashboard - Sujets filtrés: {len(user_subjects)}")
+        for subject in user_subjects:
+            print(f"DEBUG - Sujet affiché: {subject.name} (ID: {subject.id})")
+        
+        # Récupérer les sujets avec vote actif (en tenant compte des préférences)
+        vote_subjects = await get_vote_subjects_for_user(str(current_user.id), request)
+        
+        # Récupérer les votes par sujet pour calculer les votes restants correctement
+        user_votes_for_subject = await get_user_votes_for_subjects(str(current_user.id))
         
         # Préparer le contexte avec les informations de l'organisation
         from src.utils.template_helpers import add_organization_context
         context = {
             "request": request,
             "current_user": current_user,
-            "user_subjects": user_subjects,
+            "all_user_subjects": all_user_subjects,  # Tous les sujets pour la sélection
+            "user_subjects": user_subjects,  # Sujets filtrés selon les préférences
+            "user_preferences": user_preferences,  # Dictionnaire des préférences pour le template
             "user_stats": user_stats,
             "vote_subjects": vote_subjects,
+            "user_votes_for_subject": user_votes_for_subject,
             "metrics": metrics,
             "show_sidebar": True
         }
@@ -150,6 +202,22 @@ async def user_dashboard(request: Request, current_user: User = Depends(get_curr
                 'pending_count': 0
             },
             "vote_subjects": [],
+            "user_votes_for_subject": {},
+            "metrics": {
+                'subjects_count': 0,
+                'my_ideas': 0,
+                'my_votes': 0,
+                'available_votes': 0,
+                'subjects_data': [],
+                'charts': {
+                    'subjects_overview': [],
+                    'summary_stats': {
+                        'my_ideas': 0,
+                        'my_votes': 0,
+                        'total_ideas': 0
+                    }
+                }
+            },
             "show_sidebar": True
         }
         
@@ -162,8 +230,8 @@ async def user_dashboard(request: Request, current_user: User = Depends(get_curr
 async def user_vote_center(request: Request, current_user: User = Depends(get_current_normal_user)):
     """Centre de vote pour l'utilisateur"""
     try:
-        # Récupérer les sujets avec vote actif
-        vote_subjects = await get_vote_subjects_for_user(str(current_user.id))
+        # Récupérer les sujets avec vote actif (en tenant compte des préférences)
+        vote_subjects = await get_vote_subjects_for_user(str(current_user.id), request)
         
         # Compter les votes de l'utilisateur
         user_votes_count = await get_user_votes_count(str(current_user.id))
@@ -220,15 +288,22 @@ async def subject_ideas(subject_id: str, request: Request, current_user: User = 
     # Calculer les métriques de votes
     total_votes = 0
     my_votes_count = 0
+    print(f"DEBUG - Calcul des votes pour l'utilisateur {current_user.id} dans le sujet {subject_id}")
     for idea in ideas:
         votes_count = await VoteService.get_votes_count_for_idea(str(idea.id))
         total_votes += votes_count
-        if await VoteService.has_user_voted_for_idea(str(idea.id), str(current_user.id)):
+        has_voted = await VoteService.has_user_voted_for_idea(str(idea.id), str(current_user.id))
+        if has_voted:
             my_votes_count += 1
+            print(f"DEBUG - L'utilisateur a voté pour l'idée '{idea.title}' (ID: {idea.id})")
+        else:
+            print(f"DEBUG - L'utilisateur n'a PAS voté pour l'idée '{idea.title}' (ID: {idea.id})")
     
     vote_limit = getattr(subject, 'vote_limit', 0)
     vote_active = getattr(subject, 'vote_active', False)
     votes_remaining = max(0, vote_limit - my_votes_count) if vote_active else 0
+    
+    print(f"DEBUG - Résultat final: my_votes_count={my_votes_count}, vote_limit={vote_limit}, votes_remaining={votes_remaining}")
     
     # Calculer les statistiques par idée
     ideas_stats = []
@@ -538,6 +613,7 @@ async def batch_vote(request: Request, current_user: User = Depends(get_current_
             return RedirectResponse(url="/user/vote", status_code=303)
         
         success_count = 0
+        votes_by_subject = {}  # Pour compter les votes par sujet
         
         # Vérifier chaque idée et son sujet avant de voter
         for idea_id in idea_ids:
@@ -561,21 +637,48 @@ async def batch_vote(request: Request, current_user: User = Depends(get_current_
                 if str(current_user.id) not in subject.users_ids and str(current_user.id) not in subject.gestionnaires_ids:
                     continue
                 
+                # Vérifier la limite de votes pour ce sujet
+                subject_id = idea.subject_id
+                if subject_id not in votes_by_subject:
+                    # Récupérer les votes actuels de l'utilisateur pour ce sujet
+                    current_votes = await VoteService.get_user_votes_count_for_subject(str(current_user.id), subject_id)
+                    votes_by_subject[subject_id] = {
+                        'current': current_votes,
+                        'limit': getattr(subject, 'vote_limit', 0),
+                        'new_votes': 0,
+                        'subject_name': subject.name
+                    }
+                
+                # Vérifier si on peut encore voter pour ce sujet
+                subject_votes = votes_by_subject[subject_id]
+                total_votes_after = subject_votes['current'] + subject_votes['new_votes'] + 1
+                
+                if total_votes_after > subject_votes['limit']:
+                    flash(request, f"Limite de votes atteinte pour le sujet '{subject_votes['subject_name']}' ({subject_votes['limit']} votes maximum)", "warning")
+                    continue
+                
                 # Add vote if all checks pass
                 await VoteService.add_vote(idea_id, str(current_user.id))
                 success_count += 1
+                votes_by_subject[subject_id]['new_votes'] += 1
+                
+            except ValueError as ve:
+                # Erreur de limite ou déjà voté
+                flash(request, str(ve), "warning")
+                continue
             except Exception as e:
                 print(f"Erreur lors du vote groupé pour l'idée {idea_id}: {e}")
         
         if success_count > 0:
             flash(request, f"{success_count} vote(s) enregistré(s) avec succès.", "success")
         elif len(idea_ids) > 0:
-            flash(request, "Aucun vote n'a pu être enregistré. Vérifiez que les sessions de vote sont actives.", "warning")
+            flash(request, "Aucun vote n'a pu être enregistré. Vérifiez les limites de votes et que les sessions sont actives.", "warning")
         
         return RedirectResponse(url="/user/vote", status_code=303)
     except Exception as e:
         print(f"❌ Erreur lors du vote en lot: {e}")
         flash(request, "Erreur lors du vote en lot", "error")
+        return RedirectResponse(url="/user/vote", status_code=303)
         return RedirectResponse(url="/user/vote", status_code=303)
 
 @router.get("/user/subjects", response_class=HTMLResponse)

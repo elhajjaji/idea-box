@@ -63,6 +63,24 @@
         </div>
     </div>
 </div>
+
+<!-- Alerte de limite de votes si session de vote active -->
+{% if subject.vote_active %}
+<div class="alert alert-info d-flex align-items-center" role="alert">
+    <i class="bi bi-info-circle-fill me-3"></i>
+    <div class="flex-grow-1">
+        <strong>Session de vote active :</strong> 
+        Vous pouvez sélectionner jusqu'à <strong>{{ metrics.votes_remaining }}</strong> idée(s) supplémentaire(s) 
+        ({{ metrics.my_votes_count }}/{{ metrics.vote_limit }} utilisés).
+        <div class="mt-2">
+            <span class="badge bg-primary">
+                <i class="bi bi-cursor-fill me-1"></i>
+                <span id="vote-counter">0/{{ metrics.votes_remaining }} sélectionné(s)</span>
+            </span>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endif %}
 
 <!-- Statut de l'émission et du vote -->
@@ -273,13 +291,62 @@
             {% endif %}
         </form>
         <script>
+        // Configuration des limites de votes
+        const votesUsed = {{ metrics.my_votes_count }};
+        const voteLimit = {{ metrics.vote_limit }};
+        const votesRemaining = voteLimit - votesUsed;
+        
         // Permet de sélectionner/désélectionner les coeurs (votes) avant validation
         const heartBtns = document.querySelectorAll('.vote-heart-btn');
+        
+        function updateVoteStatus() {
+            const selectedCheckboxes = document.querySelectorAll('.vote-checkbox:checked:not([disabled])');
+            const selectedCount = selectedCheckboxes.length;
+            
+            // Mettre à jour l'affichage du compteur (si élément existe)
+            const counterElement = document.getElementById('vote-counter');
+            if (counterElement) {
+                counterElement.textContent = `${selectedCount}/${votesRemaining} sélectionné(s)`;
+                if (selectedCount >= votesRemaining) {
+                    counterElement.className = 'text-warning fw-bold';
+                } else {
+                    counterElement.className = 'text-muted';
+                }
+            }
+            
+            // Désactiver les boutons non sélectionnés si limite atteinte
+            heartBtns.forEach(btn => {
+                const checkbox = btn.querySelector('.vote-checkbox');
+                const icon = btn.querySelector('.heart-icon');
+                
+                if (!checkbox.disabled && !checkbox.checked && selectedCount >= votesRemaining) {
+                    // Désactiver visuellement
+                    btn.style.opacity = '0.3';
+                    btn.style.pointerEvents = 'none';
+                } else if (!checkbox.disabled) {
+                    // Réactiver
+                    btn.style.opacity = '1';
+                    btn.style.pointerEvents = 'auto';
+                }
+            });
+        }
+        
         heartBtns.forEach(btn => {
             btn.addEventListener('click', function(e) {
                 const icon = btn.querySelector('.heart-icon');
                 const checkbox = btn.querySelector('.vote-checkbox');
                 if (checkbox.disabled) return; // déjà voté, non modifiable
+                
+                const selectedCount = document.querySelectorAll('.vote-checkbox:checked:not([disabled])').length;
+                
+                // Si on essaie de sélectionner et qu'on a atteint la limite
+                if (!checkbox.checked && selectedCount >= votesRemaining) {
+                    // Afficher un message d'alerte plus informatif
+                    const remainingText = votesRemaining === 1 ? 'idée' : 'idées';
+                    alert(`Limite atteinte !\n\nVous ne pouvez sélectionner que ${votesRemaining} ${remainingText} maximum pour ce sujet.\n\nVous avez déjà utilisé ${votesUsed} vote(s) sur ${voteLimit} autorisé(s).`);
+                    return;
+                }
+                
                 checkbox.checked = !checkbox.checked;
                 if (checkbox.checked) {
                     icon.classList.remove('bi-heart', 'text-secondary');
@@ -288,8 +355,13 @@
                     icon.classList.remove('bi-heart-fill', 'text-danger');
                     icon.classList.add('bi-heart', 'text-secondary');
                 }
+                
+                updateVoteStatus();
             });
         });
+        
+        // Initialiser le statut au chargement
+        updateVoteStatus();
         </script>
         {% else %}
             <div class="text-center py-5">

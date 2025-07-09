@@ -1,0 +1,894 @@
+{% extends "base.html" %}
+
+{% block title %}Tableau de bord - Boîte à Idées{% endblock %}
+
+{% block content %}
+<!-- En-tête du dashboard avec titre et actions -->
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
+    <div class="mb-3 mb-md-0">
+        <h1 class="h3 mb-2 text-gray-800">
+            <i class="bi bi-speedometer2 me-2"></i>Mon Tableau de bord
+        </h1>
+        <p class="text-muted mb-2">Bonjour {{ current_user.prenom }} {{ current_user.nom }}, voici vos métriques</p>
+        {% if current_user.roles %}
+        <div class="d-flex flex-wrap gap-1">
+            {% for role in current_user.roles %}
+                <span class="badge bg-secondary">{{ role|capitalize }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Boutons d'action principaux -->
+    <div class="d-flex flex-column flex-sm-row gap-2 w-100 w-md-auto">
+        {% if vote_subjects %}
+        {% set subjects_with_votes_available = [] %}
+        {% for subject in vote_subjects %}
+            {% set subject_votes_used = user_votes_for_subject.get(subject.subject.id|string, 0) if user_votes_for_subject else 0 %}
+            {% set subject_votes_remaining = [0, (subject.subject.vote_limit - subject_votes_used)]|max %}
+            {% if subject_votes_remaining > 0 %}
+                {% set _ = subjects_with_votes_available.append(subject) %}
+            {% endif %}
+        {% endfor %}
+        {% if subjects_with_votes_available %}
+        <a href="/user/vote" class="btn btn-warning pulse-animation">
+            <i class="bi bi-hand-thumbs-up me-2"></i>
+            <span class="d-none d-sm-inline">Votes Disponibles</span>
+            <span class="badge bg-light text-dark ms-2">{{ subjects_with_votes_available|length }}</span>
+        </a>
+        {% endif %}
+        {% endif %}
+        <a href="/user/ideas" class="btn btn-outline-primary">
+            <i class="bi bi-lightbulb me-2"></i>Mes Idées
+        </a>
+    </div>
+</div>
+
+<!-- Alerte pour votes urgents -->
+{% if vote_subjects %}
+{% set subjects_with_votes_remaining_alert = [] %}
+{% for subject in vote_subjects %}
+    {% set subject_votes_used = user_votes_for_subject.get(subject.subject.id|string, 0) if user_votes_for_subject else 0 %}
+    {% set subject_votes_remaining = [0, (subject.subject.vote_limit - subject_votes_used)]|max %}
+    {% if subject_votes_remaining > 0 %}
+        {% set _ = subjects_with_votes_remaining_alert.append(subject) %}
+    {% endif %}
+{% endfor %}
+
+{% if subjects_with_votes_remaining_alert %}
+<div class="alert alert-warning alert-dismissible fade show border-warning shadow-sm mb-4" role="alert">
+    <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center">
+        <div class="d-flex align-items-center flex-grow-1 mb-2 mb-md-0">
+            <i class="bi bi-exclamation-triangle-fill me-3 fs-4"></i>
+            <div>
+                <strong>Sessions de vote actives !</strong>
+                <p class="mb-0 small">
+                    Vous avez {{ subjects_with_votes_remaining_alert|length }} sujet(s) avec vote actif où vous pouvez encore voter. 
+                    {% set total_votes_remaining = 0 %}
+                    {% for subject in subjects_with_votes_remaining_alert %}
+                        {% set subject_votes_used = user_votes_for_subject.get(subject.subject.id|string, 0) if user_votes_for_subject else 0 %}
+                        {% set subject_votes_remaining = [0, (subject.subject.vote_limit - subject_votes_used)]|max %}
+                        {% set total_votes_remaining = total_votes_remaining + subject_votes_remaining %}
+                    {% endfor %}
+                    Il vous reste {{ total_votes_remaining }} vote(s) à utiliser.
+                </p>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="/user/vote" class="btn btn-warning btn-sm">
+                <i class="bi bi-hand-thumbs-up me-1"></i>Voter maintenant
+            </a>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endif %}
+
+<!-- Métriques principales -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Sujets assignés</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ metrics.subjects_count if metrics else 0 }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-collection fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Mes idées</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ metrics.my_ideas if metrics else 0 }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-lightbulb fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Mes votes</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ user_stats.user_votes_count if user_stats else 0 }}</div>
+                        {% if vote_subjects %}
+                        <div class="text-xs text-warning">
+                            <i class="bi bi-arrow-right me-1"></i>Cliquez pour voter
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-hand-thumbs-up-fill fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Votes disponibles</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ metrics.available_votes if metrics else 0 }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-check-circle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sessions de Vote Actives - Section responsive -->
+{% if vote_subjects %}
+{% set subjects_with_votes_remaining = [] %}
+{% for subject in vote_subjects %}
+    {% set subject_votes_used = user_votes_for_subject.get(subject.subject.id|string, 0) if user_votes_for_subject else 0 %}
+    {% set subject_votes_remaining = [0, (subject.subject.vote_limit - subject_votes_used)]|max %}
+    {% if subject_votes_remaining > 0 %}
+        {% set _ = subjects_with_votes_remaining.append(subject) %}
+    {% endif %}
+{% endfor %}
+
+{% if subjects_with_votes_remaining %}
+<div class="card shadow mb-4 border-warning">
+    <div class="card-header py-3 d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center bg-gradient-warning">
+        <h6 class="m-0 font-weight-bold text-white mb-2 mb-md-0">
+            <i class="bi bi-hand-thumbs-up-fill me-2"></i>🚨 Sessions de Vote Actives - Action Requise
+        </h6>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-light text-dark rounded-pill">{{ subjects_with_votes_remaining|length }}</span>
+            <a href="/user/vote" class="btn btn-light btn-sm">
+                <i class="bi bi-hand-thumbs-up me-1"></i>Centre de Vote
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            {% for subject in subjects_with_votes_remaining %}
+            <div class="col-lg-6 col-xl-4 mb-3">
+                <div class="card border-warning shadow-sm hover-lift h-100">
+                    <div class="card-body d-flex flex-column">
+                        <div class="mb-3">
+                            <h6 class="card-title fw-bold">{{ subject.subject.name }}</h6>
+                            <p class="card-text text-muted small mb-2">{{ subject.subject.description|truncate(80) }}</p>
+                            
+                            <!-- Barre de progression des votes pour ce sujet -->
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="small text-muted">Vos votes :</span>
+                                    <span class="small fw-bold">
+                                        {{ user_votes_for_subject.get(subject.subject.id|string, 0) if user_votes_for_subject else 0 }} / {{ subject.subject.vote_limit }}
+                                    </span>
+                                </div>
+                                <div class="progress" style="height: 6px;">
+                                    {% set vote_percentage = ((user_votes_for_subject.get(subject.subject.id|string, 0) if user_votes_for_subject else 0) / subject.subject.vote_limit * 100)|round(1) %}
+                                    <div class="progress-bar bg-warning" role="progressbar" style="width: {{ vote_percentage }}%"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex flex-wrap gap-1 mb-3">
+                                <span class="badge bg-info">
+                                    <i class="bi bi-lightbulb-fill me-1"></i>{{ subject.ideas|length if subject.ideas else 0 }} idées
+                                </span>
+                                <span class="badge bg-success">
+                                    <i class="bi bi-hand-thumbs-up-fill me-1"></i>{{ subject.votes_count if subject.votes_count else 0 }} votes
+                                </span>
+                                {% if (user_votes_for_subject.get(subject.subject.id|string, 0) if user_votes_for_subject else 0) >= subject.subject.vote_limit %}
+                                    <span class="badge bg-secondary">
+                                        <i class="bi bi-check-circle-fill me-1"></i>Terminé
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="bi bi-clock-fill me-1"></i>En cours
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Actions en bas de carte -->
+                        <div class="mt-auto">
+                            <div class="d-flex flex-column flex-sm-row gap-2">
+                                <a href="/user/subject/{{ subject.subject.id }}/ideas" class="btn btn-outline-primary btn-sm flex-fill">
+                                    <i class="bi bi-eye me-1"></i>Voir les idées
+                                </a>
+                                <div class="btn-group flex-fill">
+                                    <a href="/user/subject/{{ subject.subject.id }}/ideas" class="btn btn-warning btn-sm">
+                                        <i class="bi bi-hand-thumbs-up me-1"></i>Voter
+                                    </a>
+                                    <a href="/user/vote" class="btn btn-outline-warning btn-sm">
+                                        <i class="bi bi-speedometer2 me-1"></i>Vue rapide
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Résumé global et action principale -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card bg-light border-warning">
+                    <div class="card-body text-center">
+                        <h6 class="card-title">
+                            <i class="bi bi-graph-up-arrow me-2"></i>Résumé de vos votes
+                        </h6>
+                        <p class="mb-3">
+                            Vous avez utilisé <strong>{{ user_stats.user_votes_count }}</strong> vote(s) au total.
+                            {% set total_votes_remaining_global = 0 %}
+                            {% for subject in vote_subjects %}
+                                {% set subject_votes_used = user_votes_for_subject.get(subject.subject.id|string, 0) if user_votes_for_subject else 0 %}
+                                {% set subject_votes_remaining = [0, (subject.subject.vote_limit - subject_votes_used)]|max %}
+                                {% set total_votes_remaining_global = total_votes_remaining_global + subject_votes_remaining %}
+                            {% endfor %}
+                            {% if total_votes_remaining_global > 0 %}
+                                Il vous reste <strong class="text-warning">{{ total_votes_remaining_global }}</strong> vote(s) disponible(s).
+                            {% else %}
+                                Vous avez utilisé tous vos votes disponibles !
+                            {% endif %}
+                        </p>
+                        <a href="/user/vote" class="btn btn-warning btn-lg">
+                            <i class="bi bi-hand-thumbs-up me-2"></i>Accéder au Centre de Vote
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endif %}
+
+<!-- Mes Sujets - Version responsive -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center bg-light">
+        <h6 class="m-0 font-weight-bold text-primary mb-2 mb-md-0">
+            <i class="bi bi-folder-fill me-2"></i>Mes Sujets Actifs
+        </h6>
+        <span class="badge bg-primary rounded-pill">{{ user_subjects|length }}</span>
+    </div>
+    <div class="card-body">
+        {% if user_subjects %}
+            <div class="list-group list-group-flush">
+                {% for subject in user_subjects %}
+                <div class="list-group-item">
+                    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start">
+                        <div class="flex-grow-1 mb-3 mb-lg-0">
+                            <h5 class="mb-1">{{ subject.name }}</h5>
+                            <p class="mb-2 text-muted small">{{ subject.description|truncate(120) }}</p>
+                            <div class="d-flex flex-wrap gap-1">
+                                {% if subject.vote_active %}
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="bi bi-hand-thumbs-up-fill me-1"></i>Vote actif
+                                    </span>
+                                {% endif %}
+                                {% if subject.emission_active %}
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-play-circle-fill me-1"></i>Émission active
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="d-flex flex-column align-items-lg-end">
+                            <div class="d-flex gap-2 mb-2">
+                                <span class="badge bg-info rounded-pill">{{ subject.ideas_count if subject.ideas_count else 0 }} idées</span>
+                                <span class="badge bg-success rounded-pill">{{ subject.votes_count if subject.votes_count else 0 }} votes</span>
+                            </div>
+                            <div class="btn-group">
+                                <a href="/user/subject/{{ subject.id }}/ideas" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-eye me-1"></i>Voir
+                                </a>
+                                {% if subject.vote_active %}
+                                    <a href="/user/subject/{{ subject.id }}/ideas" class="btn btn-warning btn-sm">
+                                        <i class="bi bi-hand-thumbs-up me-1"></i>Voter
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-inbox-fill text-muted" style="font-size: 3rem;"></i>
+                <h5 class="mt-3 text-muted">Aucun sujet ne vous est assigné pour le moment.</h5>
+                <p class="text-muted">Veuillez contacter un administrateur pour plus d'informations.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Graphiques des métriques - Section responsive -->
+<div class="row mb-4">
+    <div class="col-lg-8 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="bi bi-bar-chart me-2"></i>Mon activité par sujet
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="userActivityChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="bi bi-pie-chart me-2"></i>Répartition de mes contributions
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container small">
+                    <canvas id="contributionChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sélection des sujets d'intérêt - Section simplifiée -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
+        <h6 class="m-0 font-weight-bold text-primary mb-2 mb-md-0">
+            <i class="bi bi-check2-square me-2"></i>Mes sujets d'intérêt - Choix de participation
+        </h6>
+        <div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-2">
+            <span class="badge bg-info">{{ user_subjects|length }} disponibles</span>
+            <button class="btn btn-sm btn-outline-primary" onclick="selectAllSubjects()">
+                <i class="bi bi-check-all me-1"></i>Tout sélectionner
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info border-0 shadow-sm mb-4">
+            <div class="d-flex align-items-start">
+                <i class="bi bi-info-circle-fill me-3 mt-1 flex-shrink-0"></i>
+                <div>
+                    <strong>Choisissez vos sujets d'intérêt</strong>
+                    <p class="mb-0 mt-1">
+                        Sélectionnez les sujets sur lesquels vous souhaitez émettre des idées et participer aux votes. 
+                        Vous pouvez modifier votre sélection à tout moment.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        {% if user_subjects %}
+            <form id="subjectSelectionForm" action="/user/update-subject-preferences" method="post">
+                <div class="row">
+                    {% for subject in user_subjects %}
+                    <div class="col-lg-6 col-xl-4 mb-4">
+                        <div class="subject-card card h-100 border-2" data-subject-id="{{ subject.id }}">
+                            <div class="card-header bg-light border-0 pb-2">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1 me-2">
+                                        <h6 class="card-title mb-1 fw-bold">{{ subject.name }}</h6>
+                                        <p class="text-muted small mb-0">{{ subject.description|truncate(60) }}</p>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input subject-checkbox" 
+                                               type="checkbox" 
+                                               id="subject_{{ subject.id }}" 
+                                               name="selected_subjects" 
+                                               value="{{ subject.id }}"
+                                               {% if subject.user_participating is not defined or subject.user_participating %}checked{% endif %}
+                                               onchange="toggleSubjectCard(this)">
+                                        <label class="form-check-label d-none d-md-block" for="subject_{{ subject.id }}">
+                                            <span class="active-text">Actif</span>
+                                            <span class="inactive-text">Inactif</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card-body pt-3 d-flex flex-column">
+                                <!-- Statuts du sujet -->
+                                <div class="mb-3">
+                                    {% if subject.emission_active %}
+                                        <span class="badge bg-success me-1">
+                                            <i class="bi bi-play-circle-fill me-1"></i>Émission ouverte
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-secondary me-1">
+                                            <i class="bi bi-pause-circle-fill me-1"></i>Émission fermée
+                                        </span>
+                                    {% endif %}
+                                    
+                                    {% if subject.vote_active %}
+                                        <span class="badge bg-warning text-dark me-1">
+                                            <i class="bi bi-hand-thumbs-up-fill me-1"></i>Vote actif
+                                        </span>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Métriques du sujet -->
+                                <div class="row text-center mb-3">
+                                    <div class="col-4">
+                                        <div class="metric-box">
+                                            <div class="metric-number text-primary">{{ subject.ideas_count or 0 }}</div>
+                                            <div class="metric-label">Idées</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="metric-box">
+                                            <div class="metric-number text-success">{{ subject.my_ideas_count or 0 }}</div>
+                                            <div class="metric-label">Mes idées</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="metric-box">
+                                            <div class="metric-number text-warning">{{ subject.my_votes_count or 0 }}</div>
+                                            <div class="metric-label">Mes votes</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Barre de progression pour les votes -->
+                                {% if subject.vote_active and subject.vote_limit %}
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="small text-muted">Progression votes :</span>
+                                        <span class="small fw-bold">{{ subject.my_votes_count or 0 }} / {{ subject.vote_limit }}</span>
+                                    </div>
+                                    <div class="progress" style="height: 6px;">
+                                        {% set vote_progress = ((subject.my_votes_count or 0) / subject.vote_limit * 100)|round(1) %}
+                                        <div class="progress-bar bg-warning" style="width: {{ vote_progress }}%"></div>
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                <!-- Actions rapides -->
+                                <div class="subject-actions mt-auto">
+                                    <div class="d-flex flex-column flex-sm-row gap-2">
+                                        <a href="/user/subject/{{ subject.id }}/ideas" 
+                                           class="btn btn-outline-primary btn-sm flex-fill">
+                                            <i class="bi bi-eye me-1"></i>Voir
+                                        </a>
+                                        {% if subject.emission_active %}
+                                        <a href="/user/ideas/submit?subject_id={{ subject.id }}" 
+                                           class="btn btn-outline-success btn-sm flex-fill">
+                                            <i class="bi bi-plus me-1"></i>Idée
+                                        </a>
+                                        {% endif %}
+                                        {% if subject.vote_active %}
+                                        <a href="/user/subject/{{ subject.id }}/ideas" 
+                                           class="btn btn-outline-warning btn-sm flex-fill">
+                                            <i class="bi bi-hand-thumbs-up me-1"></i>Voter
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Boutons de sauvegarde -->
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mt-4 pt-3 border-top gap-3">
+                    <div class="text-muted">
+                        <i class="bi bi-info-circle me-1"></i>
+                        <span id="selection-count">0</span> sujet(s) sélectionné(s)
+                    </div>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-outline-secondary" onclick="resetSelection()">
+                            <i class="bi bi-arrow-clockwise me-1"></i>Réinitialiser
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg me-1"></i>Enregistrer ma sélection
+                        </button>
+                    </div>
+                </div>
+            </form>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-inbox-fill text-muted" style="font-size: 3rem;"></i>
+                <h5 class="mt-3 text-muted">Aucun sujet disponible</h5>
+                <p class="text-muted">Aucun sujet ne vous est assigné pour le moment.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- CSS amélioré pour responsive design -->
+<style>
+.border-left-primary {
+    border-left: 0.25rem solid #4e73df !important;
+}
+.border-left-success {
+    border-left: 0.25rem solid #1cc88a !important;
+}
+.border-left-info {
+    border-left: 0.25rem solid #36b9cc !important;
+}
+.border-left-warning {
+    border-left: 0.25rem solid #f6c23e !important;
+}
+
+/* Animations et effets */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.pulse-animation {
+    animation: pulse 2s infinite;
+}
+
+.pulse-animation:hover {
+    animation: none;
+    transform: scale(1.02);
+}
+
+.hover-lift {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+}
+
+.bg-gradient-warning {
+    background: linear-gradient(135deg, #f6c23e 0%, #f4a506 100%);
+}
+
+.progress {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    border-radius: 10px;
+}
+
+/* Styles pour les cartes de sujets */
+.subject-card {
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.subject-card.active {
+    border-color: #28a745 !important;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.05) 0%, rgba(255, 255, 255, 1) 100%);
+}
+
+.subject-card.inactive {
+    border-color: #6c757d !important;
+    background: #f8f9fa;
+    opacity: 0.7;
+}
+
+.subject-card.inactive .card-body {
+    color: #6c757d;
+}
+
+.subject-card.inactive .subject-actions {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Amélioration des switches */
+.form-check-switch .form-check-input {
+    width: 3rem;
+    height: 1.5rem;
+    border-radius: 2rem;
+}
+
+.form-check-switch .form-check-input:checked {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+.form-check-switch .form-check-input:not(:checked) {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+.active-text {
+    display: none;
+    color: #28a745;
+    font-weight: 600;
+    font-size: 0.75rem;
+}
+
+.inactive-text {
+    display: inline;
+    color: #6c757d;
+    font-weight: 600;
+    font-size: 0.75rem;
+}
+
+.form-check-input:checked ~ .form-check-label .active-text {
+    display: inline;
+}
+
+.form-check-input:checked ~ .form-check-label .inactive-text {
+    display: none;
+}
+
+/* Amélioration des métriques */
+.metric-box {
+    padding: 0.5rem;
+}
+
+.metric-number {
+    font-size: 1.25rem;
+    font-weight: bold;
+    line-height: 1;
+}
+
+.metric-label {
+    font-size: 0.7rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+    .chart-container {
+        height: 250px;
+    }
+    
+    .btn-group {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .btn-group .btn {
+        border-radius: 0.375rem !important;
+        margin-bottom: 0.25rem;
+    }
+    
+    .btn-group .btn:last-child {
+        margin-bottom: 0;
+    }
+    
+    .pulse-animation span.d-none {
+        display: inline-block !important;
+    }
+    
+    .subject-card .form-check-label {
+        display: none !important;
+    }
+}
+
+@media (max-width: 576px) {
+    .alert .d-flex {
+        flex-direction: column;
+        align-items: start !important;
+    }
+    
+    .alert .btn {
+        margin-top: 0.5rem;
+        align-self: stretch;
+    }
+    
+    .card-header .d-flex {
+        flex-direction: column;
+        align-items: start !important;
+    }
+    
+    .card-header .badge,
+    .card-header .btn {
+        margin-top: 0.5rem;
+    }
+}
+
+/* Animation d'activation */
+@keyframes pulse-border {
+    0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+}
+
+.subject-card.just-activated {
+    animation: pulse-border 0.6s ease-out;
+}
+</style>
+
+<!-- Scripts pour les graphiques -->
+{% include "charts_base.html" %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Données des métriques depuis le backend (avec vérification de disponibilité)
+    const metricsData = {{ metrics | tojson | safe }} || {};
+    const chartsData = metricsData.charts || {};
+    const userActivityData = chartsData.subjects_overview || [];
+    const summaryStats = chartsData.summary_stats || {};
+    
+    // Graphique d'activité par sujet (seulement si les données sont disponibles)
+    if (userActivityData.length > 0) {
+        const activityChartData = prepareMultiDatasetChart(userActivityData, 'name', [
+            {
+                label: 'Total idées',
+                key: 'total_ideas',
+                backgroundColor: 'rgba(78, 115, 223, 0.8)',
+                borderColor: 'rgb(78, 115, 223)'
+            },
+            {
+                label: 'Mes idées',
+                key: 'my_ideas',
+                backgroundColor: 'rgba(28, 200, 138, 0.8)',
+                borderColor: 'rgb(28, 200, 138)'
+            },
+            {
+                label: 'Mes votes',
+                key: 'my_votes',
+                backgroundColor: 'rgba(246, 194, 62, 0.8)',
+                borderColor: 'rgb(246, 194, 62)'
+            }
+        ]);
+        
+        createBarChart('userActivityChart', activityChartData, {
+            title: 'Mon activité par sujet'
+        });
+    }
+    
+    // Graphique de répartition des contributions (avec valeurs par défaut)
+    const contributionData = [
+        { label: 'Mes idées', value: summaryStats.my_ideas || 0 },
+        { label: 'Mes votes', value: summaryStats.my_votes || 0 },
+        { label: 'Idées des autres', value: (summaryStats.total_ideas || 0) - (summaryStats.my_ideas || 0) }
+    ];
+    
+    if (window.chartColors && window.prepareChartData && window.createDonutChart) {
+        const contributionChartData = prepareChartData(contributionData, 'label', 'value', [
+            window.chartColors.success,
+            window.chartColors.warning,
+            window.chartColors.info
+        ]);
+        
+        createDonutChart('contributionChart', contributionChartData);
+    }
+});
+
+// Fonctions pour la gestion des sujets
+function toggleSubjectCard(checkbox) {
+    const card = checkbox.closest('.subject-card');
+    
+    if (checkbox.checked) {
+        card.classList.remove('inactive');
+        card.classList.add('active', 'just-activated');
+        
+        // Retirer l'animation après un délai
+        setTimeout(() => {
+            card.classList.remove('just-activated');
+        }, 600);
+    } else {
+        card.classList.remove('active');
+        card.classList.add('inactive');
+    }
+    
+    updateSelectionCount();
+}
+
+function updateSelectionCount() {
+    const checkedBoxes = document.querySelectorAll('.subject-checkbox:checked');
+    const countElement = document.getElementById('selection-count');
+    if (countElement) {
+        countElement.textContent = checkedBoxes.length;
+    }
+}
+
+function selectAllSubjects() {
+    const checkboxes = document.querySelectorAll('.subject-checkbox');
+    checkboxes.forEach(checkbox => {
+        if (!checkbox.checked) {
+            checkbox.checked = true;
+            toggleSubjectCard(checkbox);
+        }
+    });
+}
+
+function resetSelection() {
+    const checkboxes = document.querySelectorAll('.subject-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = true;
+        toggleSubjectCard(checkbox);
+    });
+}
+
+// Initialiser l'état des cartes au chargement
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('.subject-checkbox');
+    checkboxes.forEach(checkbox => {
+        toggleSubjectCard(checkbox);
+    });
+    
+    updateSelectionCount();
+    
+    // Gérer la soumission du formulaire
+    const form = document.getElementById('subjectSelectionForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const selectedSubjects = formData.getAll('selected_subjects');
+            
+            // Afficher un message de confirmation
+            const btn = this.querySelector('button[type="submit"]');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Enregistré !';
+            btn.disabled = true;
+            
+            // Simuler l'enregistrement (remplacer par un vrai appel AJAX)
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                
+                // Afficher une notification
+                showNotification('Vos préférences de sujets ont été mises à jour !', 'success');
+            }, 1500);
+        });
+    }
+});
+
+function showNotification(message, type = 'info') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
+    alertDiv.innerHTML = `
+        <i class="bi bi-check-circle-fill me-2"></i>${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    // Auto-supprimer après 5 secondes
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}
