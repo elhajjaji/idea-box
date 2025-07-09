@@ -2,6 +2,7 @@ from typing import Dict, List, Any
 from datetime import datetime, timedelta
 from src.models.user import User
 from src.models.subject import Subject
+from src.models.vote import Vote
 from src.services.database import Database
 from src.services.idea_service import get_ideas_by_subject
 from src.services.subject_service import get_subject
@@ -10,6 +11,22 @@ import json
 
 class MetricsService:
     """Service pour générer des métriques et des données pour les graphiques"""
+    
+    @staticmethod
+    async def get_votes_count_for_idea(idea_id: str) -> int:
+        """Compte le nombre de votes pour une idée"""
+        votes = await Database.engine.find(Vote, {"idea_id": idea_id})
+        return len(votes)
+    
+    @staticmethod
+    async def get_votes_count_for_subject(subject_id: str) -> int:
+        """Compte le nombre total de votes pour toutes les idées d'un sujet"""
+        ideas = await get_ideas_by_subject(subject_id)
+        total_votes = 0
+        for idea in ideas:
+            votes_count = await MetricsService.get_votes_count_for_idea(str(idea.id))
+            total_votes += votes_count
+        return total_votes
     
     @staticmethod
     async def get_gestionnaire_dashboard_metrics(current_user: User) -> Dict[str, Any]:
@@ -36,7 +53,7 @@ class MetricsService:
         
         for subject in subjects:
             ideas = await get_ideas_by_subject(str(subject.id))
-            votes_count = sum(len(idea.votes) for idea in ideas)
+            votes_count = await MetricsService.get_votes_count_for_subject(str(subject.id))
             
             # Collecte des métriques par sujet
             subject_metrics = {
@@ -46,7 +63,7 @@ class MetricsService:
                 "votes_count": votes_count,
                 "users_count": len(subject.users_ids),
                 "status": "active" if subject.emission_active else "inactive",
-                "voting_status": "active" if subject.vote_active else "inactive"
+                "voting_status": "active" if hasattr(subject, 'vote_active') and subject.vote_active else "inactive"
             }
             metrics["subjects_data"].append(subject_metrics)
             
@@ -65,7 +82,7 @@ class MetricsService:
             
             if subject.emission_active:
                 metrics["active_subjects"] += 1
-            if subject.vote_active:
+            if hasattr(subject, 'vote_active') and subject.vote_active:
                 metrics["voting_subjects"] += 1
         
         metrics["total_users"] = len(all_users)
@@ -109,8 +126,14 @@ class MetricsService:
             # Compter mes votes
             my_votes_count = 0
             for idea in ideas:
-                if str(current_user.id) in idea.votes:
-                    my_votes_count += 1
+                user_votes = await Database.engine.find(Vote, {
+                    "idea_id": str(idea.id),
+                    "user_id": str(current_user.id)
+                })
+                my_votes_count += len(user_votes)
+            
+            vote_limit = getattr(subject, 'vote_limit', 0)
+            vote_active = getattr(subject, 'vote_active', False)
             
             subject_metrics = {
                 "id": str(subject.id),
@@ -118,10 +141,10 @@ class MetricsService:
                 "total_ideas": len(ideas),
                 "my_ideas": len(my_ideas),
                 "my_votes": my_votes_count,
-                "can_vote": subject.vote_active,
+                "can_vote": vote_active,
                 "can_submit": subject.emission_active,
-                "vote_limit": subject.vote_limit,
-                "available_votes": max(0, subject.vote_limit - my_votes_count) if subject.vote_active else 0
+                "vote_limit": vote_limit,
+                "available_votes": max(0, vote_limit - my_votes_count) if vote_active else 0
             }
             metrics["subjects_data"].append(subject_metrics)
             
@@ -167,14 +190,14 @@ class MetricsService:
         subjects_data = []
         for subject in subjects:
             ideas = await get_ideas_by_subject(str(subject.id))
-            votes_count = sum(len(idea.votes) for idea in ideas)
+            votes_count = await MetricsService.get_votes_count_for_subject(str(subject.id))
             
             total_ideas += len(ideas)
             total_votes += votes_count
             
             if subject.emission_active:
                 active_subjects += 1
-            if subject.vote_active:
+            if hasattr(subject, 'vote_active') and subject.vote_active:
                 voting_subjects += 1
             
             # Données pour le tableau
@@ -186,7 +209,7 @@ class MetricsService:
                 "users_count": len(subject.users_ids),
                 "gestionnaires_count": len(subject.gestionnaires_ids),
                 "status": "active" if subject.emission_active else "inactive",
-                "voting_status": "active" if subject.vote_active else "inactive"
+                "voting_status": "active" if hasattr(subject, 'vote_active') and subject.vote_active else "inactive"
             }
             subjects_data.append(subject_data)
         
@@ -290,20 +313,31 @@ class MetricsService:
         ideas = await get_ideas_by_subject(subject_id)
         activities = await get_subject_activities(subject_id)
         
+        # Calculer les votes pour chaque idée
+        ideas_with_votes = []
+        total_votes = 0
+        for idea in ideas:
+            votes_count = await MetricsService.get_votes_count_for_idea(str(idea.id))
+            ideas_with_votes.append({
+                "idea": idea,
+                "votes_count": votes_count
+            })
+            total_votes += votes_count
+        
         metrics = {
             "subject_info": {
                 "id": subject_id,
                 "name": subject.name,
                 "description": subject.description,
                 "emission_active": subject.emission_active,
-                "vote_active": subject.vote_active,
-                "vote_limit": subject.vote_limit,
+                "vote_active": getattr(subject, 'vote_active', False),
+                "vote_limit": getattr(subject, 'vote_limit', 0),
                 "users_count": len(subject.users_ids),
                 "gestionnaires_count": len(subject.gestionnaires_ids)
             },
             "ideas_stats": {
                 "total_ideas": len(ideas),
-                "total_votes": sum(len(idea.votes) for idea in ideas),
+                "total_votes": total_votes,
                 "top_ideas": []
             },
             "activity_stats": {
@@ -314,22 +348,23 @@ class MetricsService:
         }
         
         # Top idées (les plus votées)
-        sorted_ideas = sorted(ideas, key=lambda x: len(x.votes), reverse=True)
+        sorted_ideas = sorted(ideas_with_votes, key=lambda x: x["votes_count"], reverse=True)
         metrics["ideas_stats"]["top_ideas"] = [
             {
-                "title": idea.title,
-                "votes": len(idea.votes),
-                "author": idea.user_id  # Vous pourriez récupérer le nom de l'invité
+                "title": item["idea"].title,
+                "votes": item["votes_count"],
+                "author": item["idea"].user_id  # Vous pourriez récupérer le nom de l'invité
             }
-            for idea in sorted_ideas[:5]
+            for item in sorted_ideas[:5]
         ]
         
         # Données pour graphiques
         ideas_chart_data = []
-        for idea in sorted_ideas[:10]:  # Top 10 des idées
+        for item in sorted_ideas[:10]:  # Top 10 des idées
+            idea = item["idea"]
             ideas_chart_data.append({
                 "title": idea.title[:30] + "..." if len(idea.title) > 30 else idea.title,
-                "votes": len(idea.votes)
+                "votes": item["votes_count"]
             })
         
         metrics["charts"] = {

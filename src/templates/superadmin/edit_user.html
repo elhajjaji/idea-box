@@ -109,33 +109,135 @@
                             <div class="form-text">Au moins un rôle doit être sélectionné. Un invité peut avoir plusieurs rôles.</div>
                         </div>
 
-                        <!-- Section pour les sujets du gestionnaire -->
-                        <div class="mb-4" id="gestionnaire-subjects-section" style="display: none;">
+                        <!-- Section simplifiée pour les assignations -->
+                        <div class="mb-4">
                             <label class="form-label">
-                                <i class="bi bi-collection text-warning me-1"></i>Sujets gérés <span class="text-danger">*</span>
+                                <i class="bi bi-diagram-3 text-primary me-1"></i>Assignations aux sujets
                             </label>
-                            <div class="alert alert-info">
-                                <i class="bi bi-info-circle me-2"></i>
-                                <strong>Obligatoire :</strong> Un gestionnaire doit avoir au moins un sujet assigné.
-                            </div>
-                            <div class="row">
-                                {% for subject in subjects %}
-                                <div class="col-md-6 mb-2">
-                                    <div class="form-check">
-                                        <input class="form-check-input subject-checkbox" type="checkbox" 
-                                               id="subject_{{ subject.id }}" name="managed_subjects" value="{{ subject.id }}"
-                                               {% if user_to_edit.id|string in subject.gestionnaires_ids %}checked{% endif %}>
-                                        <label class="form-check-label" for="subject_{{ subject.id }}">
-                                            <strong>{{ subject.name }}</strong>
-                                            {% if subject.description %}
-                                                <small class="d-block text-muted">{{ subject.description[:100] }}{% if subject.description|length > 100 %}...{% endif %}</small>
-                                            {% endif %}
-                                        </label>
+                            
+                            <!-- Onglets pour séparer gestionnaire et invité -->
+                            <ul class="nav nav-tabs" id="assignmentTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="manager-tab" data-bs-toggle="tab" data-bs-target="#manager-pane" type="button" role="tab">
+                                        <i class="bi bi-kanban text-warning me-1"></i>Gestionnaire
+                                        <span class="badge bg-warning text-dark ms-1" id="manager-count">0</span>
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="invited-tab" data-bs-toggle="tab" data-bs-target="#invited-pane" type="button" role="tab">
+                                        <i class="bi bi-person-plus text-success me-1"></i>Invité
+                                        <span class="badge bg-success ms-1" id="invited-count">0</span>
+                                    </button>
+                                </li>
+                            </ul>
+                            
+                            <div class="tab-content border border-top-0 rounded-bottom p-3 bg-light">
+                                <!-- Onglet Gestionnaire -->
+                                <div class="tab-pane fade show active" id="manager-pane" role="tabpanel">
+                                    <div class="mb-3">
+                                        <div class="alert alert-info border-0">
+                                            <div class="d-flex align-items-center">
+                                                <i class="bi bi-info-circle text-primary me-2"></i>
+                                                <div>
+                                                    <strong>Rôle gestionnaire automatique :</strong> 
+                                                    Le rôle gestionnaire s'active automatiquement dès qu'au moins un sujet est sélectionné ci-dessous.
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <h6 class="text-warning mb-3">
+                                        <i class="bi bi-kanban me-1"></i>Sujets gérés par cet utilisateur :
+                                    </h6>
+                                    <div class="row">
+                                        {% for subject in subjects %}
+                                        <div class="col-md-6 mb-2">
+                                            <div class="form-check">
+                                                <input class="form-check-input manager-subject-checkbox" type="checkbox" 
+                                                       id="manage_{{ subject.id }}" name="managed_subjects" value="{{ subject.id }}"
+                                                       {% if user_to_edit.id|string in subject.gestionnaires_ids %}checked{% endif %}
+                                                       onchange="updateManagerRole()">
+                                                <label class="form-check-label" for="manage_{{ subject.id }}">
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="flex-grow-1">
+                                                            <strong>{{ subject.name }}</strong>
+                                                            {% if subject.description %}
+                                                                <small class="d-block text-muted">{{ subject.description[:80] }}...</small>
+                                                            {% endif %}
+                                                        </div>
+                                                        {% if user_to_edit.id|string in subject.gestionnaires_ids %}
+                                                            <span class="badge bg-warning text-dark ms-2">Actuel</span>
+                                                        {% endif %}
+                                                    </div>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    <div class="alert alert-success mt-3" id="manager-role-status" style="display: none;">
+                                        <i class="bi bi-check-circle me-2"></i>
+                                        <strong>Rôle gestionnaire activé :</strong> Cet utilisateur peut gérer les sujets sélectionnés et est automatiquement invité sur ces sujets.
                                     </div>
                                 </div>
-                                {% endfor %}
+                                
+                                <!-- Onglet Invité -->
+                                <div class="tab-pane fade" id="invited-pane" role="tabpanel">
+                                    <div class="mb-3">
+                                        <div class="alert alert-info border-0">
+                                            <div class="d-flex align-items-center">
+                                                <i class="bi bi-info-circle text-primary me-2"></i>
+                                                <div>
+                                                    <strong>Rôle invité automatique :</strong> 
+                                                    Le rôle invité s'active automatiquement dès qu'au moins un sujet est sélectionné ci-dessous.
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <h6 class="text-success mb-3">
+                                        <i class="bi bi-person-plus me-1"></i>Sujets où cet utilisateur est invité :
+                                    </h6>
+                                    <div class="row">
+                                        {% for subject in subjects %}
+                                        <div class="col-md-6 mb-2">
+                                            <div class="form-check">
+                                                <input class="form-check-input invited-subject-checkbox" type="checkbox" 
+                                                       id="invite_{{ subject.id }}" name="invited_subjects" value="{{ subject.id }}"
+                                                       {% if user_to_edit.id|string in subject.users_ids %}checked{% endif %}
+                                                       onchange="updateInvitedRole()">
+                                                <label class="form-check-label" for="invite_{{ subject.id }}">
+                                                    <div class="d-flex align-items-center">
+                                                        <div class="flex-grow-1">
+                                                            <strong>{{ subject.name }}</strong>
+                                                            {% if subject.description %}
+                                                                <small class="d-block text-muted">{{ subject.description[:80] }}...</small>
+                                                            {% endif %}
+                                                        </div>
+                                                        <div class="ms-2">
+                                                            {% if user_to_edit.id|string in subject.users_ids %}
+                                                                <span class="badge bg-success">Actuel</span>
+                                                            {% endif %}
+                                                            {% if user_to_edit.id|string in subject.gestionnaires_ids %}
+                                                                <span class="badge bg-warning text-dark">Gestionnaire</span>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    <div class="alert alert-success mt-3" id="invited-role-status" style="display: none;">
+                                        <i class="bi bi-check-circle me-2"></i>
+                                        <strong>Rôle invité activé :</strong> Cet utilisateur peut soumettre des idées et voter sur les sujets sélectionnés.
+                                    </div>
+                                    <div class="alert alert-warning mt-3">
+                                        <i class="bi bi-exclamation-triangle me-2"></i>
+                                        <strong>Note :</strong> Les gestionnaires sont automatiquement invités sur leurs sujets gérés, 
+                                        même si ces sujets ne sont pas cochés dans cet onglet.
+                                    </div>
+                                </div>
                             </div>
-                            <div class="form-text">Sélectionnez les sujets que cet invité pourra gérer.</div>
                         </div>
 
                         <div class="d-flex justify-content-between">
@@ -209,61 +311,119 @@ function confirmDeleteUser() {
     }
 }
 
-// Validation du formulaire
+// Mise à jour automatique des rôles en fonction des sujets sélectionnés
+function updateManagerRole() {
+    const checkboxes = document.querySelectorAll('input.manager-subject-checkbox');
+    const roleGestionnaire = document.getElementById('role_gestionnaire');
+    const managerRoleStatus = document.getElementById('manager-role-status');
+    const managerCountBadge = document.getElementById('manager-count');
+    
+    let atLeastOneChecked = false;
+    let checkedCount = 0;
+    checkboxes.forEach(checkbox => {
+        if (checkbox.checked) {
+            atLeastOneChecked = true;
+            checkedCount++;
+        }
+    });
+    
+    // Activer/désactiver automatiquement le rôle gestionnaire
+    roleGestionnaire.checked = atLeastOneChecked;
+    
+    // Mettre à jour le compteur de sujets gérés
+    managerCountBadge.textContent = checkedCount;
+    
+    // Afficher/masquer l'alerte de statut
+    if (atLeastOneChecked) {
+        managerRoleStatus.style.display = 'block';
+    } else {
+        managerRoleStatus.style.display = 'none';
+    }
+}
+
+function updateInvitedRole() {
+    const checkboxes = document.querySelectorAll('input.invited-subject-checkbox');
+    const roleUser = document.getElementById('role_user');
+    const invitedRoleStatus = document.getElementById('invited-role-status');
+    const invitedCountBadge = document.getElementById('invited-count');
+    
+    let atLeastOneChecked = false;
+    let checkedCount = 0;
+    checkboxes.forEach(checkbox => {
+        if (checkbox.checked) {
+            atLeastOneChecked = true;
+            checkedCount++;
+        }
+    });
+    
+    // Activer/désactiver automatiquement le rôle invité
+    roleUser.checked = atLeastOneChecked;
+    
+    // Mettre à jour le compteur de sujets invités
+    invitedCountBadge.textContent = checkedCount;
+    
+    // Afficher/masquer l'alerte de statut
+    if (atLeastOneChecked) {
+        invitedRoleStatus.style.display = 'block';
+    } else {
+        invitedRoleStatus.style.display = 'none';
+    }
+}
+
+// Initialisation au chargement de la page
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('form[action*="/edit"]');
     const roleCheckboxes = document.querySelectorAll('input[name="roles"]');
-    const gestionnaireCheckbox = document.getElementById('role_gestionnaire');
-    const subjectsSection = document.getElementById('gestionnaire-subjects-section');
-    const subjectCheckboxes = document.querySelectorAll('.subject-checkbox');
+    const roleGestionnaire = document.getElementById('role_gestionnaire');
+    const roleUser = document.getElementById('role_user');
     
-    // Fonction pour afficher/masquer la section des sujets
-    function toggleSubjectsSection() {
-        if (gestionnaireCheckbox.checked) {
-            subjectsSection.style.display = 'block';
-        } else {
-            subjectsSection.style.display = 'none';
-            // Décocher tous les sujets si gestionnaire n'est pas sélectionné
-            subjectCheckboxes.forEach(checkbox => {
-                checkbox.checked = false;
-            });
-        }
-    }
+    // Initialiser l'état des alertes au chargement
+    updateManagerRole();
+    updateInvitedRole();
     
-    // Initialiser l'affichage au chargement
-    toggleSubjectsSection();
-    
-    // Écouter les changements sur la checkbox gestionnaire
-    gestionnaireCheckbox.addEventListener('change', toggleSubjectsSection);
-    
+    // Validation du formulaire
     form.addEventListener('submit', function(e) {
         // Vérifier qu'au moins un rôle est sélectionné
         const checkedRoles = document.querySelectorAll('input[name="roles"]:checked');
         if (checkedRoles.length === 0) {
             e.preventDefault();
-            alert('Au moins un rôle doit être sélectionné.');
+            alert('Au moins un rôle doit être sélectionné. Sélectionnez au moins un sujet dans les onglets ci-dessus.');
             return;
         }
         
         // Vérifier que si gestionnaire est sélectionné, au moins un sujet est choisi
-        if (gestionnaireCheckbox.checked) {
-            const checkedSubjects = document.querySelectorAll('.subject-checkbox:checked');
-            if (checkedSubjects.length === 0) {
+        if (roleGestionnaire.checked) {
+            const checkedManagedSubjects = document.querySelectorAll('input[name="managed_subjects"]:checked');
+            if (checkedManagedSubjects.length === 0) {
                 e.preventDefault();
                 alert('Un gestionnaire doit avoir au moins un sujet assigné.');
                 return;
             }
         }
+        
+        // Vérifier que si invité est sélectionné, au moins un sujet est choisi
+        if (roleUser.checked) {
+            const checkedInvitedSubjects = document.querySelectorAll('input[name="invited_subjects"]:checked');
+            const checkedManagedSubjects = document.querySelectorAll('input[name="managed_subjects"]:checked');
+            
+            // Un utilisateur peut être invité soit par sélection directe, soit automatiquement via gestionnaire
+            if (checkedInvitedSubjects.length === 0 && checkedManagedSubjects.length === 0) {
+                e.preventDefault();
+                alert('Un invité doit être assigné à au moins un sujet.');
+                return;
+            }
+        }
     });
     
-    // Auto-cocher "user" si aucun rôle n'est sélectionné
-    roleCheckboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
-            const checkedRoles = document.querySelectorAll('input[name="roles"]:checked');
-            if (checkedRoles.length === 0) {
-                document.getElementById('role_user').checked = true;
-            }
-        });
+    // Empêcher la désactivation manuelle des rôles
+    roleGestionnaire.addEventListener('click', function(e) {
+        e.preventDefault();
+        alert('Le rôle gestionnaire s\'active automatiquement quand vous sélectionnez des sujets à gérer.');
+    });
+    
+    roleUser.addEventListener('click', function(e) {
+        e.preventDefault();
+        alert('Le rôle invité s\'active automatiquement quand vous sélectionnez des sujets sur lesquels participer.');
     });
 });
 </script>

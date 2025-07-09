@@ -5,27 +5,98 @@
 {% block content %}
 <div class="container mt-5">
     <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">Choisissez votre rôle</h4>
+        <div class="col-md-8">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-gradient-primary text-white text-center py-4">
+                    <i class="bi bi-person-circle fs-1 mb-3"></i>
+                    <h2 class="mb-0">Choisissez votre interface</h2>
+                    <p class="mb-0 opacity-75">Vous avez plusieurs rôles dans l'application</p>
                 </div>
-                <div class="card-body">
-                    <p class="mb-4">Vous avez plusieurs rôles. Veuillez choisir l'interface à utiliser :</p>
-                    <div class="d-grid gap-3">
-                        {% for role in roles %}
-                            {% if role|lower == 'gestionnaire' %}
-                                <a href="/gestionnaire/dashboard" class="btn btn-outline-primary btn-lg">Gestionnaire</a>
-                            {% elif role|lower == 'user' or role|lower == 'utilisateur' %}
-                                <a href="/user/dashboard" class="btn btn-outline-success btn-lg">Utilisateur</a>
-                            {% else %}
-                                <a href="#" class="btn btn-outline-secondary btn-lg">{{ role|capitalize }}</a>
-                            {% endif %}
+                <div class="card-body p-5">
+                    <div class="alert alert-info mb-4">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Bonjour {{ current_user.prenom }} {{ current_user.nom }} !</strong><br>
+                        Vous avez accès à plusieurs interfaces. Choisissez celle que vous souhaitez utiliser maintenant.
+                    </div>
+
+                    <div class="row g-3">
+                        {% for role_info in primary_roles %}
+                        <div class="col-md-6">
+                            <a href="{{ role_info.url }}" class="text-decoration-none">
+                                <div class="card h-100 border-{{ role_info.color }} role-card role-{{ role_info.name }}">
+                                    <div class="card-body text-center p-4">
+                                        <div class="role-icon-wrapper mb-3">
+                                            <i class="{{ role_info.icon }} fs-1"></i>
+                                        </div>
+                                        <h4 class="card-title text-{{ role_info.color }}">{{ role_info.display }}</h4>
+                                        <p class="card-text text-muted">
+                                            {% if role_info.name == "superadmin" %}
+                                                Gérez l'ensemble de la plateforme, les utilisateurs et les sujets
+                                            {% elif role_info.name == "gestionnaire" %}
+                                                Administrez vos sujets et gérez les participants
+                                            {% else %}
+                                                Soumettez des idées et participez aux votes
+                                            {% endif %}
+                                        </p>
+                                        <div class="btn btn-outline-{{ role_info.color }} w-100">
+                                            Accéder à l'interface
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
                         {% endfor %}
+                    </div>
+
+                    <div class="text-center mt-4">
+                        <small class="text-muted">
+                            <i class="bi bi-lightbulb me-1"></i>
+                            Vous pouvez changer d'interface à tout moment via le menu utilisateur
+                        </small>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+.role-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.role-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.role-icon-wrapper {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--bs-primary) 0%, var(--bs-info) 100%);
+    color: white;
+}
+
+.role-superadmin .role-icon-wrapper {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+}
+
+.role-gestionnaire .role-icon-wrapper {
+    background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+}
+
+.role-user .role-icon-wrapper {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+}
+
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+</style>
 {% endblock %}

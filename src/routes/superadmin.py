@@ -14,6 +14,8 @@ from src.services.user_service import create_user, get_users, add_role_to_user, 
 from src.services.database import Database
 from src.services.metrics_service import MetricsService
 
+from src.services.role_management_service import RoleManagementService
+
 router = APIRouter()
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -402,6 +404,7 @@ async def edit_user(
     email: str = Form(...),
     roles: List[str] = Form(default=[]),
     managed_subjects: List[str] = Form(default=[]),
+    invited_subjects: List[str] = Form(default=[]),
     current_user: User = Depends(get_current_superadmin)
 ):
     """Modifier un utilisateur existant"""
@@ -427,13 +430,15 @@ async def edit_user(
         # Récupérer tous les sujets pour gérer les changements
         all_subjects = await Database.engine.find(Subject)
         
-        # Retirer l'utilisateur de tous les sujets où il était gestionnaire
+        # Retirer l'utilisateur de tous les sujets (gestionnaire ET invité)
         for subject in all_subjects:
             if user_id in subject.gestionnaires_ids:
                 subject.gestionnaires_ids.remove(user_id)
-                await Database.engine.save(subject)
+            if user_id in subject.users_ids:
+                subject.users_ids.remove(user_id)
+            await Database.engine.save(subject)
         
-        # Ajouter l'utilisateur comme gestionnaire des nouveaux sujets sélectionnés
+        # Ajouter l'utilisateur comme gestionnaire des sujets sélectionnés
         if "gestionnaire" in roles and managed_subjects:
             for subject_id in managed_subjects:
                 try:
@@ -442,12 +447,25 @@ async def edit_user(
                         # Ajouter l'utilisateur comme gestionnaire du sujet
                         if user_id not in subject.gestionnaires_ids:
                             subject.gestionnaires_ids.append(user_id)
-                        # Ajouter aussi l'utilisateur aux utilisateurs du sujet
+                        # Ajouter aussi l'utilisateur aux utilisateurs du sujet (auto-invitation)
                         if user_id not in subject.users_ids:
                             subject.users_ids.append(user_id)
                         await Database.engine.save(subject)
                 except Exception as e:
                     print(f"❌ Erreur lors de l'ajout du gestionnaire au sujet {subject_id}: {e}")
+        
+        # Ajouter l'utilisateur comme invité sur les sujets sélectionnés
+        if invited_subjects:
+            for subject_id in invited_subjects:
+                try:
+                    subject = await Database.engine.find_one(Subject, Subject.id == ObjectId(subject_id))
+                    if subject:
+                        # Ajouter l'utilisateur aux utilisateurs du sujet (invitation)
+                        if user_id not in subject.users_ids:
+                            subject.users_ids.append(user_id)
+                        await Database.engine.save(subject)
+                except Exception as e:
+                    print(f"❌ Erreur lors de l'ajout de l'invité au sujet {subject_id}: {e}")
         
         # Mettre à jour les informations de l'utilisateur
         user_to_edit.nom = nom.strip()
@@ -458,8 +476,11 @@ async def edit_user(
         # Sauvegarder les modifications
         await Database.engine.save(user_to_edit)
         
+        # Utiliser le service de gestion automatique des rôles pour synchroniser
+        await RoleManagementService.update_user_roles_from_subjects(user_id)
+        
         from src.utils.flash_messages import flash
-        flash(request, f"L'utilisateur {prenom} {nom} a été modifié avec succès.", "success")
+        flash(request, f"L'utilisateur {prenom} {nom} a été modifié avec succès. Rôles synchronisés automatiquement.", "success")
         return RedirectResponse(url="/superadmin/users", status_code=303)
         
     except Exception as e:
@@ -522,3 +543,71 @@ async def delete_user(
         from src.utils.flash_messages import flash
         flash(request, "Erreur lors de la suppression de l'utilisateur.", "error")
         return RedirectResponse(url="/superadmin/users", status_code=303)
+
+@router.post("/superadmin/users/{user_id}/toggle_role")
+async def toggle_user_role(user_id: str, request: Request, role: str = Form(...), current_user: User = Depends(get_current_superadmin)):
+    """Toggle un rôle pour un utilisateur - OBSOLÈTE: Les rôles sont maintenant gérés automatiquement"""
+    flash(request, "⚠️ Les rôles sont maintenant gérés automatiquement selon les assignations aux sujets.", "warning")
+    return RedirectResponse(url="/superadmin/users", status_code=303)
+
+@router.post("/superadmin/users/{user_id}/update_subject_assignment")
+async def update_user_subject_assignment(
+    user_id: str, 
+    request: Request, 
+    subject_id: str = Form(...),
+    assignment_type: str = Form(...),  # "add_invitee", "add_manager", "remove_invitee", "remove_manager"
+    current_user: User = Depends(get_current_superadmin)
+):
+    """Met à jour l'assignation d'un utilisateur à un sujet avec gestion automatique des rôles"""
+    try:
+        user = await Database.engine.find_one(User, User.id == user_id)
+        subject = await Database.engine.find_one(Subject, Subject.id == subject_id)
+        
+        if not user or not subject:
+            flash(request, "Utilisateur ou sujet non trouvé.", "error")
+            return RedirectResponse(url="/superadmin/users", status_code=303)
+        
+        success = False
+        
+        if assignment_type == "add_invitee":
+            success = await RoleManagementService.add_user_to_subject_as_invitee(user_id, subject_id)
+            if success:
+                flash(request, f"✅ {user.username} ajouté comme invité au sujet '{subject.name}'. Rôles mis à jour automatiquement.", "success")
+        
+        elif assignment_type == "add_manager":
+            success = await RoleManagementService.add_user_to_subject_as_manager(user_id, subject_id)
+            if success:
+                flash(request, f"✅ {user.username} ajouté comme gestionnaire du sujet '{subject.name}'. Rôles mis à jour automatiquement.", "success")
+        
+        elif assignment_type == "remove_invitee":
+            success = await RoleManagementService.remove_user_from_subject(user_id, subject_id, as_manager=False)
+            if success:
+                flash(request, f"✅ {user.username} retiré des invités du sujet '{subject.name}'. Rôles mis à jour automatiquement.", "success")
+        
+        elif assignment_type == "remove_manager":
+            success = await RoleManagementService.remove_user_from_subject(user_id, subject_id, as_manager=True)
+            if success:
+                flash(request, f"✅ {user.username} retiré des gestionnaires du sujet '{subject.name}'. Rôles mis à jour automatiquement.", "success")
+        
+        if not success:
+            flash(request, "Erreur lors de la mise à jour de l'assignation.", "error")
+            
+    except Exception as e:
+        print(f"❌ Erreur assignation utilisateur: {e}")
+        flash(request, "Erreur lors de la mise à jour de l'assignation.", "error")
+    
+    return RedirectResponse(url="/superadmin/users", status_code=303)
+
+@router.post("/superadmin/users/sync_roles")
+async def sync_all_user_roles(request: Request, current_user: User = Depends(get_current_superadmin)):
+    """Synchronise les rôles de tous les utilisateurs selon leurs assignations aux sujets"""
+    try:
+        from src.utils.flash_messages import flash
+        updated_count = await RoleManagementService.update_all_users_roles()
+        flash(request, f"✅ Synchronisation terminée: {updated_count} utilisateurs mis à jour.", "success")
+    except Exception as e:
+        print(f"❌ Erreur synchronisation rôles: {e}")
+        from src.utils.flash_messages import flash
+        flash(request, "Erreur lors de la synchronisation des rôles.", "error")
+    
+    return RedirectResponse(url="/superadmin/users", status_code=303)

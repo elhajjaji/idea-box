@@ -287,7 +287,7 @@
             min-height: 100vh;
             position: fixed;
             left: 0;
-            top: 130px; /* Augmenté de 76px à 130px pour laisser place à la barre horizontale */
+            top: 76px; /* Retour à la valeur originale */
             bottom: 0;
             z-index: 1010;
             transition: all 0.3s ease;
@@ -296,7 +296,7 @@
         .content-wrapper {
             width: calc(100% - 250px);
             margin-left: 250px;
-            padding-top: 54px; /* Hauteur du menu secondaire */
+            padding-top: 0; /* Suppression du padding pour le menu secondaire */
             min-height: calc(100vh - 76px);
             transition: all 0.3s ease;
         }
@@ -371,7 +371,7 @@
         
         /* Menu fixe en haut */
         body {
-            padding-top: 130px; /* Espace pour le menu fixe + menu secondaire */
+            padding-top: 76px; /* Retour à la valeur originale */
         }
         
         /* Styles pour le menu secondaire */
@@ -790,8 +790,18 @@
                             </a>
                         </li>
                         
-                        <!-- Sous-menus pour chaque rôle -->
-                        {% if "superadmin" in current_user.roles %}
+                        <!-- Détection de l'interface active -->
+                        {% set current_path = request.url.path %}
+                        {% if current_path.startswith('/superadmin') and "superadmin" in current_user.roles %}
+                            {% set active_interface = 'superadmin' %}
+                        {% elif current_path.startswith('/gestionnaire') and "gestionnaire" in current_user.roles %}
+                            {% set active_interface = 'gestionnaire' %}
+                        {% else %}
+                            {% set active_interface = 'user' %}
+                        {% endif %}
+                        
+                        <!-- Affichage du menu uniquement pour l'interface active -->
+                        {% if active_interface == 'superadmin' %}
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle px-3 py-2 rounded-pill me-2" href="#" 
                                    id="superadminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false"
@@ -836,9 +846,7 @@
                                     </a></li>
                                 </ul>
                             </li>
-                        {% endif %}
-                        
-                        {% if "gestionnaire" in current_user.roles %}
+                        {% elif active_interface == 'gestionnaire' %}
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle px-3 py-2 rounded-pill me-2" href="#" 
                                    id="gestionnaireDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false"
@@ -882,36 +890,43 @@
                                     </a></li>
                                 </ul>
                             </li>
-                        {% endif %}
-                        
-                        {% if "user" in current_user.roles %}
+                        {% else %}
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="bi bi-person-workspace me-1 text-success"></i>
+                                <a class="nav-link dropdown-toggle px-3 py-2 rounded-pill me-2" href="#" 
+                                   id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false"
+                                   style="background: rgba(40,167,69,0.2); transition: all 0.3s ease;"
+                                   onmouseover="this.style.background='rgba(40,167,69,0.3)'"
+                                   onmouseout="this.style.background='rgba(40,167,69,0.2)'">
+                                    <i class="bi bi-person-workspace me-1"></i>
                                     <span class="fw-semibold">Invité</span>
                                 </a>
-                                <ul class="dropdown-menu" aria-labelledby="userDropdown">
-                                    <li><a class="dropdown-item" href="/user/dashboard">
-                                        <i class="bi bi-speedometer2 me-2"></i>Mon tableau de bord
+                                <ul class="dropdown-menu shadow-lg border-0" aria-labelledby="userDropdown"
+                                    style="border-radius: 12px; background: white; min-width: 280px;">
+                                    <li><a class="dropdown-item py-2 px-3 rounded-3 m-1" href="/user/dashboard">
+                                        <i class="bi bi-speedometer2 me-2" style="color: var(--primary-color);"></i>Mon tableau de bord
                                     </a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><h6 class="dropdown-header">Mes contributions</h6></li>
-                                    <li><a class="dropdown-item" href="/user/ideas">
-                                        <i class="bi bi-lightbulb me-2"></i>Mes idées
+                                    <li><hr class="dropdown-divider mx-2"></li>
+                                    <li><h6 class="dropdown-header text-uppercase fw-bold" style="color: var(--primary-color); font-size: 0.7rem; letter-spacing: 1px;">
+                                        <i class="bi bi-lightbulb me-1"></i>Mes contributions
+                                    </h6></li>
+                                    <li><a class="dropdown-item py-2 px-3 rounded-3 m-1" href="/user/ideas">
+                                        <i class="bi bi-lightbulb me-2" style="color: var(--secondary-color);"></i>Mes idées
                                     </a></li>
-                                    <li><a class="dropdown-item" href="/user/ideas/submit">
-                                        <i class="bi bi-plus-circle me-2"></i>Soumettre une idée
+                                    <li><a class="dropdown-item py-2 px-3 rounded-3 m-1" href="/user/ideas/submit">
+                                        <i class="bi bi-plus-circle me-2" style="color: var(--accent-color);"></i>Soumettre une idée
                                     </a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><h6 class="dropdown-header">Participation</h6></li>
-                                    <li><a class="dropdown-item" href="/user/vote">
-                                        <i class="bi bi-hand-thumbs-up me-2"></i>Sessions de vote
+                                    <li><hr class="dropdown-divider mx-2"></li>
+                                    <li><h6 class="dropdown-header text-uppercase fw-bold" style="color: var(--primary-color); font-size: 0.7rem; letter-spacing: 1px;">
+                                        <i class="bi bi-hand-thumbs-up me-1"></i>Participation
+                                    </h6></li>
+                                    <li><a class="dropdown-item py-2 px-3 rounded-3 m-1" href="/user/vote">
+                                        <i class="bi bi-hand-thumbs-up me-2" style="color: var(--secondary-color);"></i>Sessions de vote
                                     </a></li>
-                                    <li><a class="dropdown-item" href="/user/subjects">
-                                        <i class="bi bi-collection me-2"></i>Mes sujets
+                                    <li><a class="dropdown-item py-2 px-3 rounded-3 m-1" href="/user/subjects">
+                                        <i class="bi bi-collection me-2" style="color: var(--info-color);"></i>Mes sujets
                                     </a></li>
-                                    <li><a class="dropdown-item" href="/user/subjects/ideas">
-                                        <i class="bi bi-eye me-2"></i>Toutes les idées par sujet
+                                    <li><a class="dropdown-item py-2 px-3 rounded-3 m-1" href="/user/subjects/ideas">
+                                        <i class="bi bi-eye me-2" style="color: var(--warning-color);"></i>Toutes les idées par sujet
                                     </a></li>
                                 </ul>
                             </li>
@@ -925,10 +940,28 @@
                             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
                                 <i class="bi bi-person-circle me-1"></i>
                                 {{ current_user.prenom }} {{ current_user.nom }}
+                                {% if current_user.roles|length > 1 %}
+                                    <span class="badge bg-light text-dark ms-1" style="font-size: 0.7rem;">
+                                        {{ current_user.roles|length }} rôles
+                                    </span>
+                                {% endif %}
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end">
                                 <li><h6 class="dropdown-header">{{ current_user.email }}</h6></li>
                                 <li><hr class="dropdown-divider"></li>
+                                {% if current_user.roles|length > 1 %}
+                                <li>
+                                    <div class="dropdown-item-text">
+                                        <small class="text-muted">Vos rôles :</small><br>
+                                        {% for role in current_user.roles %}
+                                            <span class="badge {% if role == 'superadmin' %}bg-danger{% elif role == 'gestionnaire' %}bg-warning{% else %}bg-primary{% endif %} me-1 mb-1">
+                                                {{ role|title }}
+                                            </span>
+                                        {% endfor %}
+                                    </div>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                {% endif %}
                                 <li>
                                     <a class="dropdown-item" href="/auth/profile">
                                         <i class="bi bi-person me-2"></i>Mon Profil
@@ -941,159 +974,149 @@
                                 </li>
                             </ul>
                         </li>
-                    {% else %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="/auth/login">
-                                <i class="bi bi-box-arrow-in-right me-1"></i>Connexion
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="/auth/register">
-                                <i class="bi bi-person-plus me-1"></i>Inscription
-                            </a>
-                        </li>
                     {% endif %}
                 </ul>
             </div>
         </div>
     </nav>
 
-    <!-- Menu secondaire horizontal -->
-    <!-- Debug: current_user = {{ current_user }}, show_sidebar = {{ show_sidebar }} -->
-    {% if current_user %}
-    <div class="bg-white shadow-sm border-bottom" style="position: fixed; top: 76px; left: 0; right: 0; z-index: 1020;">
-        <div class="container-fluid">
-            <nav class="nav nav-pills nav-fill py-2">
-                {% if "superadmin" in current_user.roles %}
-                    <a class="nav-link px-3 py-2 mx-1 rounded-pill" href="/superadmin/dashboard" 
-                       style="color: var(--primary-color); transition: all 0.3s ease;">
-                        <i class="bi bi-speedometer2 me-1"></i>Dashboard
-                    </a>
-                    <a class="nav-link px-3 py-2 mx-1 rounded-pill" href="/superadmin/users" 
-                       style="color: var(--primary-color); transition: all 0.3s ease;">
-                        <i class="bi bi-people me-1"></i>Invités
-                    </a>
-                    <a class="nav-link px-3 py-2 mx-1 rounded-pill" href="/superadmin/subjects" 
-                       style="color: var(--primary-color); transition: all 0.3s ease;">
-                        <i class="bi bi-collection me-1"></i>Sujets
-                    </a>
-                    <a class="nav-link px-3 py-2 mx-1 rounded-pill" href="/superadmin/organization" 
-                       style="color: var(--primary-color); transition: all 0.3s ease;">
-                        <i class="bi bi-gear me-1"></i>Paramètres
-                    </a>
-                {% elif "gestionnaire" in current_user.roles %}
-                    <a class="nav-link px-3 py-2 mx-1 rounded-pill" href="/gestionnaire/dashboard" 
-                       style="color: var(--primary-color); transition: all 0.3s ease;">
-                        <i class="bi bi-kanban me-1"></i>Dashboard
-                    </a>
-                    <a class="nav-link px-3 py-2 mx-1 rounded-pill" href="/gestionnaire/subjects" 
-                       style="color: var(--primary-color); transition: all 0.3s ease;">
-                        <i class="bi bi-collection me-1"></i>Mes Sujets
-                    </a>
-                    <a class="nav-link px-3 py-2 mx-1 rounded-pill" href="/gestionnaire/users" 
-                       style="color: var(--primary-color); transition: all 0.3s ease;">
-                        <i class="bi bi-people me-1"></i>Invités
-                    </a>
-                    <a class="nav-link px-3 py-2 mx-1 rounded-pill" href="/gestionnaire/subject/manage" 
-                       style="color: var(--primary-color); transition: all 0.3s ease;">
-                        <i class="bi bi-tools me-1"></i>Gestion
-                    </a>
-                {% else %}
-                    <a class="nav-link px-3 py-2 mx-1 rounded-pill" href="/user/dashboard" 
-                       style="color: var(--primary-color); transition: all 0.3s ease;">
-                        <i class="bi bi-person-workspace me-1"></i>Mes Sujets
-                    </a>
-                    <a class="nav-link px-3 py-2 mx-1 rounded-pill" href="/user/ideas" 
-                       style="color: var(--primary-color); transition: all 0.3s ease;">
-                        <i class="bi bi-lightbulb me-1"></i>Mes Idées
-                    </a>
-                    <a class="nav-link px-3 py-2 mx-1 rounded-pill" href="/user/vote" 
-                       style="color: var(--primary-color); transition: all 0.3s ease;">
-                        <i class="bi bi-hand-thumbs-up me-1"></i>Votes
-                    </a>
-                {% endif %}
-            </nav>
-        </div>
-    </div>
-    {% endif %}
-
     <div class="page-container">
         <!-- Menu vertical (Sidebar) -->
         {% if current_user and show_sidebar %}
         <div class="sidebar-wrapper">
             <div class="sidebar">
-                {% if "superadmin" in current_user.roles %}
-                    <div class="sidebar-heading">Super Admin</div>
+                <!-- Indicateur de l'interface active -->
+                {% set current_path = request.url.path %}
+                {% if current_path.startswith('/superadmin') and "superadmin" in current_user.roles %}
+                    {% set active_interface = 'superadmin' %}
+                    {% set interface_name = 'Super Administrateur' %}
+                    {% set interface_icon = 'bi-shield-fill-check' %}
+                    {% set interface_color = '#dc3545' %}
+                {% elif current_path.startswith('/gestionnaire') and "gestionnaire" in current_user.roles %}
+                    {% set active_interface = 'gestionnaire' %}
+                    {% set interface_name = 'Gestionnaire' %}
+                    {% set interface_icon = 'bi-kanban' %}
+                    {% set interface_color = '#ffc107' %}
+                {% else %}
+                    {% set active_interface = 'user' %}
+                    {% set interface_name = 'Invité' %}
+                    {% set interface_icon = 'bi-person' %}
+                    {% set interface_color = '#28a745' %}
+                {% endif %}
+
+                <!-- Header avec interface active et possibilité de changer -->
+                <div class="interface-header mb-4 p-3" style="background: rgba(255,255,255,0.1); border-radius: 10px; border: 1px solid rgba(255,255,255,0.2);">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <div class="d-flex align-items-center">
+                            <i class="bi {{ interface_icon }} me-2" style="font-size: 1.2rem; color: {{ interface_color }};"></i>
+                            <span class="text-white fw-bold">{{ interface_name }}</span>
+                        </div>
+                        <div class="status-indicator">
+                            <i class="bi bi-circle-fill" style="font-size: 8px; color: #00ff00; text-shadow: 0 0 5px #00ff00;"></i>
+                        </div>
+                    </div>
+                    
+                    <!-- Bouton pour changer d'interface (seulement si multi-rôles) -->
+                    {% if current_user.roles|length > 1 %}
+                    <div class="dropdown">
+                        <button class="btn btn-outline-light btn-sm w-100 dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-arrow-repeat me-1"></i>Changer d'interface
+                        </button>
+                        <ul class="dropdown-menu w-100">
+                            {% if "superadmin" in current_user.roles and active_interface != 'superadmin' %}
+                            <li><a class="dropdown-item" href="/superadmin/dashboard">
+                                <i class="bi bi-shield-fill-check me-2 text-danger"></i>Super Administrateur
+                            </a></li>
+                            {% endif %}
+                            {% if "gestionnaire" in current_user.roles and active_interface != 'gestionnaire' %}
+                            <li><a class="dropdown-item" href="/gestionnaire/dashboard">
+                                <i class="bi bi-kanban me-2 text-warning"></i>Gestionnaire
+                            </a></li>
+                            {% endif %}
+                            {% if "user" in current_user.roles and active_interface != 'user' %}
+                            <li><a class="dropdown-item" href="/user/dashboard">
+                                <i class="bi bi-person me-2 text-success"></i>Invité
+                            </a></li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Menu selon l'interface active -->
+                {% if active_interface == 'superadmin' %}
+                    <div class="sidebar-heading">SUPER ADMIN</div>
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link" href="/superadmin/dashboard">
+                            <a class="nav-link {% if current_path == '/superadmin/dashboard' %}active{% endif %}" href="/superadmin/dashboard">
                                 <i class="bi bi-speedometer2"></i> Tableau de bord
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/superadmin/users">
+                            <a class="nav-link {% if current_path.startswith('/superadmin/users') %}active{% endif %}" href="/superadmin/users">
                                 <i class="bi bi-people"></i> Gestion des invités
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/superadmin/subjects">
+                            <a class="nav-link {% if current_path.startswith('/superadmin/subjects') %}active{% endif %}" href="/superadmin/subjects">
                                 <i class="bi bi-collection"></i> Gestion des sujets
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/superadmin/organization">
+                            <a class="nav-link {% if current_path.startswith('/superadmin/organization') %}active{% endif %}" href="/superadmin/organization">
                                 <i class="bi bi-building"></i> Configuration
                             </a>
                         </li>
                     </ul>
-                {% endif %}
-                
-                {% if "gestionnaire" in current_user.roles %}
-                    <div class="sidebar-heading">Gestionnaire</div>
+                {% elif active_interface == 'gestionnaire' %}
+                    <div class="sidebar-heading">GESTIONNAIRE</div>
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link" href="/gestionnaire/dashboard">
+                            <a class="nav-link {% if current_path == '/gestionnaire/dashboard' %}active{% endif %}" href="/gestionnaire/dashboard">
                                 <i class="bi bi-kanban"></i> Tableau de bord
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/gestionnaire/subjects">
+                            <a class="nav-link {% if current_path.startswith('/gestionnaire/subjects') %}active{% endif %}" href="/gestionnaire/subjects">
                                 <i class="bi bi-collection"></i> Mes sujets
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/gestionnaire/users">
+                            <a class="nav-link {% if current_path.startswith('/gestionnaire/users') %}active{% endif %}" href="/gestionnaire/users">
                                 <i class="bi bi-people"></i> Invités
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/gestionnaire/subject/manage">
+                            <a class="nav-link {% if current_path.startswith('/gestionnaire/subject/manage') %}active{% endif %}" href="/gestionnaire/subject/manage">
                                 <i class="bi bi-tools"></i> Gestion rapide
                             </a>
                         </li>
                     </ul>
-                {% endif %}
-                
-                {% if "user" in current_user.roles %}
-                    <div class="sidebar-heading">Invité</div>
+                {% else %}
+                    <div class="sidebar-heading">INVITÉ</div>
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link" href="/user/dashboard">
+                            <a class="nav-link {% if current_path == '/user/dashboard' %}active{% endif %}" href="/user/dashboard">
                                 <i class="bi bi-person-workspace"></i> Tableau de bord
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/user/ideas">
+                            <a class="nav-link {% if current_path.startswith('/user/subject-selection') %}active{% endif %}" href="/user/subject-selection">
+                                <i class="bi bi-check2-square"></i> Choisir mes sujets
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if current_path.startswith('/user/ideas') %}active{% endif %}" href="/user/ideas">
                                 <i class="bi bi-lightbulb"></i> Mes idées
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/user/subjects">
+                            <a class="nav-link {% if current_path.startswith('/user/subjects') %}active{% endif %}" href="/user/subjects">
                                 <i class="bi bi-collection"></i> Mes sujets
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="/user/vote">
+                            <a class="nav-link {% if current_path.startswith('/user/vote') %}active{% endif %}" href="/user/vote">
                                 <i class="bi bi-hand-thumbs-up"></i> Voter
                             </a>
                         </li>

@@ -13,10 +13,12 @@ class Subject(Model):
     gestionnaires_ids: List[str] = [] # List of user IDs who are managers for this subject
     users_ids: List[str] = [] # List of user IDs assigned to this subject
     emission_active: bool = False
+    
+    # Attributs pour le système de vote
     vote_active: bool = False
-    vote_limit: int = 1 # Number of votes per user
-    show_votes_during_vote: bool = True  # Afficher le nombre de votes pendant la session de vote
-
+    vote_limit: int = 5  # Nombre maximum de votes par utilisateur
+    show_votes_during_vote: bool = False  # Afficher les votes en temps réel pendant la session
+    
     # Attributs pour les statistiques (non stockés en DB)
     ideas_count: Optional[int] = 0
     votes_count: Optional[int] = 0
@@ -32,8 +34,8 @@ class Subject(Model):
                 "users_ids": [],
                 "emission_active": False,
                 "vote_active": False,
-                "vote_limit": 3,
-                "show_votes_during_vote": True
+                "vote_limit": 5,
+                "show_votes_during_vote": False
             }
         }
     )

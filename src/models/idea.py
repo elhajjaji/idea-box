@@ -1,5 +1,5 @@
 from pydantic import ConfigDict
-from typing import List, Optional
+from typing import Optional
 from datetime import datetime
 from odmantic import Model, Field
 
@@ -10,7 +10,6 @@ class Idea(Model):
     title: str
     description: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.now)
-    votes: List[str] = [] # List of user IDs who voted for this idea
 
     model_config = ConfigDict(
         json_schema_extra={

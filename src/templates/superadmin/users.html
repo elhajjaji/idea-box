@@ -4,54 +4,136 @@
 
 {% block content %}
 <div class="container mt-5">
-    <h1 class="text-center">Gestion des Invités</h1>
-    <div class="card mt-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <span>Invités</span>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Gestion des Invités</h1>
+        <div class="d-flex gap-2">
+            <form action="/superadmin/users/sync_roles" method="post" style="display: inline;">
+                <button type="submit" class="btn btn-warning" 
+                        onclick="return confirm('Synchroniser les rôles de tous les utilisateurs selon leurs assignations aux sujets ?')"
+                        title="Corrige automatiquement les rôles selon les assignations aux sujets">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Synchroniser les rôles
+                </button>
+            </form>
+            <a href="/superadmin/users/add" class="btn btn-primary">
+                <i class="bi bi-person-plus me-1"></i>Ajouter un invité
+            </a>
+            <a href="/superadmin/users/import" class="btn btn-secondary">
+                <i class="bi bi-upload me-1"></i>Importer (CSV)
+            </a>
+        </div>
+    </div>
+    
+    <!-- Alerte d'information sur la gestion automatique des rôles -->
+    <div class="alert alert-info border-0 shadow-sm mb-4">
+        <div class="d-flex align-items-start">
+            <i class="bi bi-info-circle-fill me-3 mt-1"></i>
             <div>
-                <a href="/superadmin/users/add" class="btn btn-primary">Ajouter un invité</a>
-                <a href="/superadmin/users/import" class="btn btn-secondary">Importer des invités (CSV)</a>
+                <strong>Gestion automatique des rôles</strong>
+                <p class="mb-0 mt-1">
+                    Les rôles sont maintenant attribués automatiquement selon les assignations aux sujets :
+                    <span class="badge bg-success ms-1">Invité</span> si assigné à au moins un sujet comme participant, 
+                    <span class="badge bg-warning text-dark ms-1">Gestionnaire</span> si assigné comme gestionnaire d'au moins un sujet.
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card shadow">
+        <div class="card-header bg-light py-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="bi bi-people me-2"></i>Liste des invités
+                </h6>
+                <span class="badge bg-info">{{ users|length }} utilisateurs</span>
             </div>
         </div>
         <div class="card-body">
-            <table class="table table-striped">
-                <thead>
+            <table class="table table-hover">
+                <thead class="table-light">
                     <tr>
-                        <th>Email</th>
-                        <th>Nom</th>
-                        <th>Prénom</th>
-                        <th>Rôles</th>
+                        <th>Utilisateur</th>
+                        <th>Rôles automatiques</th>
+                        <th>Assignations</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for user in users %}
                         <tr>
-                            <td>{{ user.email }}</td>
-                            <td>{{ user.nom }}</td>
-                            <td>{{ user.prenom }}</td>
                             <td>
-                                {% set stats = user_subject_stats[user.id|string] %}
-                                {% if stats.nb_invite > 0 %}
-                                  <span class="role-hover" 
-                                        data-user-id="{{ user.id }}" 
-                                        data-role="invite"
-                                        title="Invité sur : {{ user_subject_stats[user.id|string].invited_subjects|join(', ') }}">
-                                    <span style="font-style:italic;font-weight:bold;">{{ stats.nb_invite }}</span> Invité
-                                  </span>
-                                {% endif %}
-                                {% if stats.nb_gestionnaire > 0 %}
-                                  {% if stats.nb_invite > 0 %}, {% endif %}
-                                  <span class="role-hover" 
-                                        data-user-id="{{ user.id }}" 
-                                        data-role="gestionnaire"
-                                        title="Sujets gérés : {{ user_subject_stats[user.id|string].managed_subjects|join(', ') }}">
-                                    <span style="font-style:italic;font-weight:bold;">{{ stats.nb_gestionnaire }}</span> Gestionnaire
-                                  </span>
-                                {% endif %}
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center me-3">
+                                        <span class="text-white fw-bold">{{ user.prenom[0] }}{{ user.nom[0] }}</span>
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold">{{ user.prenom }} {{ user.nom }}</div>
+                                        <div class="text-muted small">{{ user.email }}</div>
+                                    </div>
+                                </div>
                             </td>
                             <td>
-                                <a href="/superadmin/users/{{ user.id }}/edit" class="btn btn-sm btn-outline-primary">Modifier</a>
+                                {% set stats = user_subject_stats[user.id|string] %}
+                                <div class="d-flex flex-wrap gap-1">
+                                    {% if "superadmin" in user.roles %}
+                                        <span class="badge bg-danger">
+                                            <i class="bi bi-shield-fill-check me-1"></i>Super Admin
+                                        </span>
+                                    {% endif %}
+                                    {% if stats.nb_gestionnaire > 0 %}
+                                        <span class="badge bg-warning text-dark" 
+                                              title="Gestionnaire de {{ stats.nb_gestionnaire }} sujet(s)">
+                                            <i class="bi bi-kanban me-1"></i>Gestionnaire ({{ stats.nb_gestionnaire }})
+                                        </span>
+                                    {% endif %}
+                                    {% if stats.nb_invite > 0 %}
+                                        <span class="badge bg-success" 
+                                              title="Invité sur {{ stats.nb_invite }} sujet(s)">
+                                            <i class="bi bi-person me-1"></i>Invité ({{ stats.nb_invite }})
+                                        </span>
+                                    {% endif %}
+                                    {% if stats.nb_gestionnaire == 0 and stats.nb_invite == 0 %}
+                                        <span class="badge bg-secondary">
+                                            <i class="bi bi-person-x me-1"></i>Aucune assignation
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="small">
+                                    {% if stats.managed_subjects %}
+                                        <div class="text-warning">
+                                            <i class="bi bi-kanban me-1"></i>
+                                            <strong>Gère :</strong> {{ stats.managed_subjects|join(', ')|truncate(50) }}
+                                        </div>
+                                    {% endif %}
+                                    {% if stats.invited_subjects %}
+                                        <div class="text-success">
+                                            <i class="bi bi-person me-1"></i>
+                                            <strong>Invité :</strong> {{ stats.invited_subjects|join(', ')|truncate(50) }}
+                                        </div>
+                                    {% endif %}
+                                    {% if not stats.managed_subjects and not stats.invited_subjects %}
+                                        <span class="text-muted">Aucune assignation</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="/superadmin/users/{{ user.id }}/edit" 
+                                       class="btn btn-sm btn-outline-primary"
+                                       title="Modifier les informations et assignations">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    {% if user.username != "admin" and user.id != current_user.id %}
+                                    <form action="/superadmin/users/{{ user.id }}/delete" method="post" style="display: inline;">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                onclick="return confirm('Êtes-vous sûr de vouloir supprimer {{ user.prenom }} {{ user.nom }} ?')"
+                                                title="Supprimer l'utilisateur">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
                             </td>
                         </tr>
                     {% endfor %}
@@ -60,18 +142,45 @@
         </div>
     </div>
 </div>
+
+<style>
+.avatar-sm {
+    width: 40px;
+    height: 40px;
+    font-size: 0.875rem;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+}
+
+.badge {
+    font-size: 0.75rem;
+}
+
+.btn-group .btn {
+    border-radius: 0.25rem;
+    margin-right: 0.25rem;
+}
+
+.btn-group .btn:last-child {
+    margin-right: 0;
+}
+</style>
+
 <script>
-const userSubjects = {
-  {% for user in users %}
-    '{{ user.id }}': {
-      invites: [
-        {% for s in user_subject_stats[user.id|string].invited_subjects %}'{{ s }}',{% endfor %}
-      ],
-      gestionnaire: [
-        {% for s in user_subject_stats[user.id|string].managed_subjects %}'{{ s }}',{% endfor %}
-      ]
-    },
-  {% endfor %}
-};
+// Confirmation pour la synchronisation des rôles
+document.addEventListener('DOMContentLoaded', function() {
+    const syncButton = document.querySelector('form[action="/superadmin/users/sync_roles"] button');
+    if (syncButton) {
+        syncButton.addEventListener('click', function(e) {
+            const confirmed = confirm('⚠️ Synchroniser les rôles de tous les utilisateurs ?\n\nCette action va :\n- Attribuer automatiquement les rôles selon les assignations aux sujets\n- Corriger les incohérences existantes\n\nContinuer ?');
+            if (!confirmed) {
+                e.preventDefault();
+            }
+        });
+    }
+});
 </script>
+
 {% endblock %}

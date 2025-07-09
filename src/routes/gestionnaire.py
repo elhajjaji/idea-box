@@ -17,6 +17,7 @@ from src.services.subject_service import (
 from src.services.database import Database
 from src.services.activity_log_service import log_activity, get_subject_activities
 from src.services.metrics_service import MetricsService
+from src.services.vote_service import VoteService
 
 router = APIRouter()
 
@@ -43,7 +44,8 @@ async def gestionnaire_dashboard(request: Request, current_user: User = Depends(
     for subject in subjects:
         ideas = await get_ideas_by_subject(str(subject.id))
         subject.ideas_count = len(ideas)
-        subject.votes_count = sum(len(idea.votes) for idea in ideas)
+        # Utiliser VoteService pour compter les votes
+        subject.votes_count = await VoteService.get_votes_count_for_subject(str(subject.id))
         
     active_subject_id = request.session.get("active_subject_id")
     active_subject = None
@@ -646,6 +648,10 @@ async def manage_subject(subject_id: str, request: Request, current_user: User =
         # S'assurer que description n'est jamais None
         description_content = idea.description if idea.description is not None else ""
         
+        # Utiliser VoteService pour compter les votes
+        votes_count = await VoteService.get_votes_count_for_idea(str(idea.id))
+        voter_ids = await VoteService.get_voter_ids_for_idea(str(idea.id))
+        
         # Créer un dictionnaire avec toutes les informations
         idea_dict = {
             "id": str(idea.id),
@@ -653,15 +659,15 @@ async def manage_subject(subject_id: str, request: Request, current_user: User =
             "description": description_content,
             "author_name": author_name,
             "author_id": idea.user_id,
-            "votes_count": len(idea.votes),
-            "votes": idea.votes,
+            "votes_count": votes_count,
+            "votes": voter_ids,  # Liste des IDs des votants pour compatibilité
             # "created_at": idea.created_at,  # On ne le met pas pour éviter l'erreur JSON
             "subject_id": idea.subject_id
         }
         
         enriched_ideas.append(idea_dict)
     # TRIER par nombre de votes décroissant
-    enriched_ideas.sort(key=lambda i: len(i["votes"]), reverse=True)
+    enriched_ideas.sort(key=lambda i: i["votes_count"], reverse=True)
     return templates.TemplateResponse("gestionnaire/manage_subject.html", {
         "request": request,
         "subject": subject,
@@ -773,7 +779,7 @@ async def delete_idea_route(
     
     # Sauvegarder les informations pour le log avant suppression
     idea_title = idea.title
-    votes_count = len(idea.votes) if idea.votes else 0
+    votes_count = await VoteService.get_votes_count_for_idea(str(idea.id))
     
     try:
         # Supprimer l'idée
@@ -822,8 +828,11 @@ async def subject_history(subject_id: str, request: Request, current_user: User 
     # Calculer le nombre total d'idées
     total_ideas = len(ideas)
     
-    # Calculer le nombre total de votes
-    total_votes = sum(len(idea.votes) for idea in ideas)
+    # Calculer le nombre total de votes en utilisant VoteService
+    total_votes = 0
+    for idea in ideas:
+        votes_count = await VoteService.get_votes_count_for_idea(str(idea.id))
+        total_votes += votes_count
     
     # Calculer le nombre d'utilisateurs assignés
     total_users = len(subject.users_ids)
@@ -868,11 +877,17 @@ async def manage_subjects_overview(request: Request, current_user: User = Depend
             all_users = await get_users()
             subject_users = [user for user in all_users if str(user.id) in subject.users_ids]
             
+            # Calculer le nombre total de votes pour ce sujet
+            total_votes = 0
+            for idea in ideas:
+                votes_count = await VoteService.get_votes_count_for_idea(str(idea.id))
+                total_votes += votes_count
+            
             enriched_subjects.append({
                 "subject": subject,
                 "ideas_count": len(ideas),
                 "users_count": len(subject_users),
-                "votes_count": sum(len(idea.votes) for idea in ideas),
+                "votes_count": total_votes,
                 "status": "Émission" if subject.emission_active else "Vote" if subject.vote_active else "Fermé"
             })
         

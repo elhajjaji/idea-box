@@ -59,10 +59,15 @@ async def read_root(request: Request, current_user=Depends(get_current_user_opti
         context = await add_organization_context(context)
         return templates.TemplateResponse("index.html", context)
     
-    # Rediriger vers le tableau de bord approprié selon le rôle
-    if "superadmin" in current_user.roles:
+    # Pour les utilisateurs avec plusieurs rôles, afficher le choix
+    if len(current_user.roles) > 1:
+        return RedirectResponse(url="/choose-role", status_code=303)
+    
+    # Redirection automatique pour un seul rôle
+    role = current_user.roles[0].lower()
+    if role == "superadmin":
         return RedirectResponse(url="/superadmin/dashboard", status_code=303)
-    elif "gestionnaire" in current_user.roles:
+    elif role == "gestionnaire":
         return RedirectResponse(url="/gestionnaire/dashboard", status_code=303)
     else:
         return RedirectResponse(url="/user/dashboard", status_code=303)

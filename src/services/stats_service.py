@@ -2,6 +2,7 @@ from src.models.user import User
 from src.models.subject import Subject
 from src.services.database import Database
 from src.services.idea_service import get_ideas_by_subject
+from src.services.vote_service import VoteService
 
 async def get_user_dashboard_stats(current_user: User):
     """
@@ -20,7 +21,13 @@ async def get_user_dashboard_stats(current_user: User):
     for subject in user_subjects:
         subject_ideas = await get_ideas_by_subject(str(subject.id))
         subject.ideas_count = len(subject_ideas)
-        subject.votes_count = sum(len(idea.votes) for idea in subject_ideas)
+        
+        # Calculer le nombre total de votes pour toutes les idées du sujet
+        subject.votes_count = 0
+        for idea in subject_ideas:
+            votes_count = await VoteService.get_votes_count_for_idea(str(idea.id))
+            subject.votes_count += votes_count
+            
         subject.user_ideas_count = len([
             idea for idea in subject_ideas if idea.user_id == str(current_user.id)
         ])

@@ -18,40 +18,52 @@
     }
     
     .metrics-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
         color: white;
         border-radius: 15px;
         padding: 1.5rem;
         margin-bottom: 1rem;
         box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+    
+    .metrics-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
     }
     
     .metrics-card.success {
-        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        background: linear-gradient(135deg, var(--success-color) 0%, #38ef7d 100%);
     }
     
     .metrics-card.warning {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        background: linear-gradient(135deg, var(--warning-color) 0%, #f5576c 100%);
     }
     
     .metrics-card.info {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        background: linear-gradient(135deg, var(--info-color) 0%, #00f2fe 100%);
     }
     
     .metrics-card.danger {
-        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        background: linear-gradient(135deg, var(--danger-color) 0%, #fee140 100%);
     }
     
     .metric-value {
         font-size: 2.5rem;
         font-weight: bold;
         margin: 0;
+        position: relative;
+        z-index: 2;
     }
     
     .metric-label {
         font-size: 0.9rem;
         opacity: 0.9;
         margin: 0;
+        position: relative;
+        z-index: 2;
     }
     
     .metric-icon {
@@ -61,13 +73,14 @@
         right: 1rem;
         top: 50%;
         transform: translateY(-50%);
+        z-index: 1;
     }
     
     .chart-title {
         font-size: 1.2rem;
         font-weight: 600;
         margin-bottom: 1rem;
-        color: #495057;
+        color: var(--text-color, #495057);
     }
     
     .dashboard-grid {
@@ -86,51 +99,118 @@
     }
     
     .status-active {
-        background-color: #d4edda;
-        color: #155724;
+        background-color: rgba(212, 237, 218, 0.8);
+        color: var(--success-color, #155724);
     }
     
     .status-inactive {
-        background-color: #f8d7da;
-        color: #721c24;
+        background-color: rgba(248, 215, 218, 0.8);
+        color: var(--danger-color, #721c24);
     }
     
     .status-voting {
-        background-color: #d1ecf1;
-        color: #0c5460;
+        background-color: rgba(209, 236, 241, 0.8);
+        color: var(--info-color, #0c5460);
+    }
+    
+    /* Adaptation pour les thèmes sombres */
+    .theme-dark .chart-container,
+    .theme-cyber .chart-container {
+        background-color: rgba(255, 255, 255, 0.05);
+        border-radius: 10px;
+        padding: 15px;
+    }
+    
+    .theme-dark .metrics-card,
+    .theme-cyber .metrics-card {
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .theme-dark .status-active,
+    .theme-cyber .status-active {
+        background-color: rgba(34, 211, 238, 0.2);
+        color: var(--success-color);
+    }
+    
+    .theme-dark .status-inactive,
+    .theme-cyber .status-inactive {
+        background-color: rgba(248, 113, 113, 0.2);
+        color: var(--danger-color);
+    }
+    
+    .theme-dark .status-voting,
+    .theme-cyber .status-voting {
+        background-color: rgba(129, 140, 248, 0.2);
+        color: var(--info-color);
     }
 </style>
 
 <!-- Fonctions JavaScript communes pour les graphiques -->
 <script>
-    // Configuration globale pour Chart.js
+    // Configuration globale pour Chart.js avec adaptation aux thèmes
     Chart.defaults.font.family = '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    Chart.defaults.color = '#6c757d';
     Chart.defaults.plugins.legend.position = 'top';
     Chart.defaults.plugins.legend.align = 'start';
     
-    // Couleurs prédéfinies
-    const chartColors = {
-        primary: '#4e73df',
-        success: '#1cc88a',
-        info: '#36b9cc',
-        warning: '#f6c23e',
-        danger: '#e74a3b',
-        secondary: '#858796',
-        light: '#f8f9fc',
-        dark: '#5a5c69'
-    };
+    // Fonction pour détecter le thème actuel
+    function getCurrentTheme() {
+        const body = document.body;
+        const classList = body.classList;
+        
+        if (classList.contains('theme-dark')) return 'dark';
+        if (classList.contains('theme-cyber')) return 'cyber';
+        if (classList.contains('theme-classic')) return 'classic';
+        if (classList.contains('theme-nature')) return 'nature';
+        if (classList.contains('theme-sunset')) return 'sunset';
+        if (classList.contains('theme-ocean')) return 'ocean';
+        if (classList.contains('theme-royal')) return 'royal';
+        if (classList.contains('theme-business')) return 'business';
+        if (classList.contains('theme-rose')) return 'rose';
+        if (classList.contains('theme-forest')) return 'forest';
+        
+        return 'default';
+    }
     
-    const chartColorsPalette = [
-        '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b',
-        '#858796', '#6f42c1', '#fd7e14', '#20c997', '#17a2b8'
-    ];
+    // Couleurs adaptées aux thèmes
+    function getThemeColors() {
+        const theme = getCurrentTheme();
+        const isDark = theme === 'dark' || theme === 'cyber';
+        
+        const baseColors = {
+            primary: getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim() || '#4e73df',
+            success: getComputedStyle(document.documentElement).getPropertyValue('--success-color').trim() || '#1cc88a',
+            info: getComputedStyle(document.documentElement).getPropertyValue('--info-color').trim() || '#36b9cc',
+            warning: getComputedStyle(document.documentElement).getPropertyValue('--warning-color').trim() || '#f6c23e',
+            danger: getComputedStyle(document.documentElement).getPropertyValue('--danger-color').trim() || '#e74a3b',
+            secondary: getComputedStyle(document.documentElement).getPropertyValue('--secondary-color').trim() || '#858796',
+            light: getComputedStyle(document.documentElement).getPropertyValue('--light-color').trim() || '#f8f9fc',
+            dark: getComputedStyle(document.documentElement).getPropertyValue('--dark-color').trim() || '#5a5c69'
+        };
+        
+        // Adapter la couleur du texte selon le thème
+        Chart.defaults.color = isDark ? '#f1f5f9' : '#6c757d';
+        
+        return baseColors;
+    }
+    
+    // Palette de couleurs adaptée au thème
+    function getChartColorsPalette() {
+        const colors = getThemeColors();
+        return [
+            colors.primary, colors.success, colors.info, colors.warning, colors.danger,
+            colors.secondary, '#6f42c1', '#fd7e14', '#20c997', '#17a2b8'
+        ];
+    }
     
     /**
-     * Crée un graphique en barres
+     * Crée un graphique en barres avec adaptation automatique au thème
      */
     function createBarChart(canvasId, data, options = {}) {
-        const ctx = document.getElementById(canvasId).getContext('2d');
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) return null;
+        
+        const colors = getThemeColors();
+        const isDark = getCurrentTheme() === 'dark' || getCurrentTheme() === 'cyber';
         
         const defaultOptions = {
             responsive: true,
@@ -138,11 +218,18 @@
             plugins: {
                 legend: {
                     display: true,
-                    position: 'top'
+                    position: 'top',
+                    labels: {
+                        color: isDark ? '#f1f5f9' : '#6c757d',
+                        font: {
+                            size: 12
+                        }
+                    }
                 },
                 title: {
                     display: !!options.title,
                     text: options.title || '',
+                    color: isDark ? '#f1f5f9' : '#495057',
                     font: {
                         size: 16,
                         weight: 'bold'
@@ -153,7 +240,19 @@
                 y: {
                     beginAtZero: true,
                     ticks: {
-                        precision: 0
+                        precision: 0,
+                        color: isDark ? '#94a3b8' : '#6c757d'
+                    },
+                    grid: {
+                        color: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                    }
+                },
+                x: {
+                    ticks: {
+                        color: isDark ? '#94a3b8' : '#6c757d'
+                    },
+                    grid: {
+                        color: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
                     }
                 }
             }
@@ -167,10 +266,13 @@
     }
     
     /**
-     * Crée un graphique en secteurs (pie chart)
+     * Crée un graphique en secteurs (pie chart) avec adaptation au thème
      */
     function createPieChart(canvasId, data, options = {}) {
-        const ctx = document.getElementById(canvasId).getContext('2d');
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) return null;
+        
+        const isDark = getCurrentTheme() === 'dark' || getCurrentTheme() === 'cyber';
         
         const defaultOptions = {
             responsive: true,
@@ -178,11 +280,18 @@
             plugins: {
                 legend: {
                     display: true,
-                    position: 'right'
+                    position: 'right',
+                    labels: {
+                        color: isDark ? '#f1f5f9' : '#6c757d',
+                        font: {
+                            size: 11
+                        }
+                    }
                 },
                 title: {
                     display: !!options.title,
                     text: options.title || '',
+                    color: isDark ? '#f1f5f9' : '#495057',
                     font: {
                         size: 16,
                         weight: 'bold'
@@ -199,10 +308,13 @@
     }
     
     /**
-     * Crée un graphique en ligne
+     * Crée un graphique en ligne avec adaptation au thème
      */
     function createLineChart(canvasId, data, options = {}) {
-        const ctx = document.getElementById(canvasId).getContext('2d');
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) return null;
+        
+        const isDark = getCurrentTheme() === 'dark' || getCurrentTheme() === 'cyber';
         
         const defaultOptions = {
             responsive: true,
@@ -210,11 +322,15 @@
             plugins: {
                 legend: {
                     display: true,
-                    position: 'top'
+                    position: 'top',
+                    labels: {
+                        color: isDark ? '#f1f5f9' : '#6c757d'
+                    }
                 },
                 title: {
                     display: !!options.title,
                     text: options.title || '',
+                    color: isDark ? '#f1f5f9' : '#495057',
                     font: {
                         size: 16,
                         weight: 'bold'
@@ -225,7 +341,19 @@
                 y: {
                     beginAtZero: true,
                     ticks: {
-                        precision: 0
+                        precision: 0,
+                        color: isDark ? '#94a3b8' : '#6c757d'
+                    },
+                    grid: {
+                        color: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                    }
+                },
+                x: {
+                    ticks: {
+                        color: isDark ? '#94a3b8' : '#6c757d'
+                    },
+                    grid: {
+                        color: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
                     }
                 }
             }
@@ -239,10 +367,13 @@
     }
     
     /**
-     * Crée un graphique en donut
+     * Crée un graphique en donut avec adaptation au thème
      */
     function createDonutChart(canvasId, data, options = {}) {
-        const ctx = document.getElementById(canvasId).getContext('2d');
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) return null;
+        
+        const isDark = getCurrentTheme() === 'dark' || getCurrentTheme() === 'cyber';
         
         const defaultOptions = {
             responsive: true,
@@ -250,11 +381,18 @@
             plugins: {
                 legend: {
                     display: true,
-                    position: 'bottom'
+                    position: 'bottom',
+                    labels: {
+                        color: isDark ? '#f1f5f9' : '#6c757d',
+                        font: {
+                            size: 11
+                        }
+                    }
                 },
                 title: {
                     display: !!options.title,
                     text: options.title || '',
+                    color: isDark ? '#f1f5f9' : '#495057',
                     font: {
                         size: 16,
                         weight: 'bold'
@@ -274,13 +412,15 @@
     /**
      * Prépare les données pour un graphique à partir d'un tableau d'objets
      */
-    function prepareChartData(dataArray, labelKey, valueKey, backgroundColors = chartColorsPalette) {
+    function prepareChartData(dataArray, labelKey, valueKey, backgroundColors = null) {
+        const colors = backgroundColors || getChartColorsPalette();
+        
         return {
             labels: dataArray.map(item => item[labelKey]),
             datasets: [{
                 data: dataArray.map(item => item[valueKey]),
-                backgroundColor: backgroundColors.slice(0, dataArray.length),
-                borderColor: backgroundColors.slice(0, dataArray.length),
+                backgroundColor: colors.slice(0, dataArray.length),
+                borderColor: colors.slice(0, dataArray.length),
                 borderWidth: 1
             }]
         };
@@ -290,13 +430,15 @@
      * Prépare les données pour un graphique multi-datasets
      */
     function prepareMultiDatasetChart(dataArray, labelKey, datasets) {
+        const colors = getThemeColors();
+        
         return {
             labels: dataArray.map(item => item[labelKey]),
             datasets: datasets.map((dataset, index) => ({
                 label: dataset.label,
                 data: dataArray.map(item => item[dataset.key]),
-                backgroundColor: dataset.backgroundColor || chartColorsPalette[index],
-                borderColor: dataset.borderColor || chartColorsPalette[index],
+                backgroundColor: dataset.backgroundColor || colors[Object.keys(colors)[index]],
+                borderColor: dataset.borderColor || colors[Object.keys(colors)[index]],
                 borderWidth: 1
             }))
         };
@@ -331,12 +473,38 @@
         const counters = document.querySelectorAll('.metric-value[data-count]');
         counters.forEach(counter => {
             const target = parseInt(counter.getAttribute('data-count'));
-            animateCounter(counter, 0, target);
+            if (!isNaN(target)) {
+                animateCounter(counter, 0, target);
+            }
         });
+    }
+    
+    /**
+     * Met à jour tous les graphiques lors du changement de thème
+     */
+    function updateChartsForTheme() {
+        // Cette fonction sera appelée lors du changement de thème
+        // pour recréer les graphiques avec les nouvelles couleurs
+        const event = new CustomEvent('themeChanged');
+        document.dispatchEvent(event);
     }
     
     // Initialiser les animations au chargement
     document.addEventListener('DOMContentLoaded', function() {
         initCounterAnimations();
+        
+        // Observer les changements de thème
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                    updateChartsForTheme();
+                }
+            });
+        });
+        
+        observer.observe(document.body, {
+            attributes: true,
+            attributeFilter: ['class']
+        });
     });
 </script>
