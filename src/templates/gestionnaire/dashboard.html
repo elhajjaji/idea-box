@@ -17,6 +17,11 @@
         <a href="/gestionnaire/users" class="btn btn-outline-secondary">
             <i class="bi bi-people me-2"></i>Invités
         </a>
+        {% if 'superadmin' in current_user.roles or 'gestionnaire' in current_user.roles %}
+        <a href="/gestionnaire/ideas/bulk" class="btn btn-outline-warning">
+            <i class="bi bi-pencil-square me-2"></i>Modification en masse des idées
+        </a>
+        {% endif %}
     </div>
 </div>
 

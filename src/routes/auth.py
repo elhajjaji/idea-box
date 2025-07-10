@@ -95,3 +95,80 @@ async def profile_page(request: Request, current_user: User = Depends(get_curren
     context = await add_organization_context(context)
     
     return templates.TemplateResponse("profile.html", context)
+
+@router.post("/profile/update")
+async def update_profile(
+    request: Request,
+    prenom: str = Form(...),
+    nom: str = Form(...),
+    email: str = Form(...),
+    current_user: User = Depends(get_current_user)
+):
+    """Mettre à jour les informations du profil utilisateur"""
+    try:
+        # Vérifier si l'email n'est pas déjà utilisé par un autre utilisateur
+        if email != current_user.email:
+            existing_user = await get_user_by_email(email)
+            if existing_user and str(existing_user.id) != str(current_user.id):
+                from src.utils.flash_messages import flash
+                flash(request, "Cette adresse email est déjà utilisée par un autre compte.", "error")
+                return RedirectResponse(url="/auth/profile", status_code=303)
+        
+        # Mettre à jour les informations
+        current_user.prenom = prenom.strip()
+        current_user.nom = nom.strip()
+        current_user.email = email.strip()
+        
+        await Database.engine.save(current_user)
+        
+        from src.utils.flash_messages import flash
+        flash(request, "Profil mis à jour avec succès!", "success")
+        return RedirectResponse(url="/auth/profile", status_code=303)
+        
+    except Exception as e:
+        print(f"❌ Erreur mise à jour profil: {e}")
+        from src.utils.flash_messages import flash
+        flash(request, "Erreur lors de la mise à jour du profil.", "error")
+        return RedirectResponse(url="/auth/profile", status_code=303)
+
+@router.post("/profile/change-password")
+async def change_password(
+    request: Request,
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    confirm_new_password: str = Form(...),
+    current_user: User = Depends(get_current_user)
+):
+    """Changer le mot de passe de l'utilisateur"""
+    try:
+        # Vérifier le mot de passe actuel
+        if not verify_password(current_password, current_user.pwd):
+            from src.utils.flash_messages import flash
+            flash(request, "Le mot de passe actuel est incorrect.", "error")
+            return RedirectResponse(url="/auth/profile", status_code=303)
+        
+        # Vérifier que les nouveaux mots de passe correspondent
+        if new_password != confirm_new_password:
+            from src.utils.flash_messages import flash
+            flash(request, "Les nouveaux mots de passe ne correspondent pas.", "error")
+            return RedirectResponse(url="/auth/profile", status_code=303)
+        
+        # Vérifier la longueur du nouveau mot de passe
+        if len(new_password) < 6:
+            from src.utils.flash_messages import flash
+            flash(request, "Le nouveau mot de passe doit contenir au moins 6 caractères.", "error")
+            return RedirectResponse(url="/auth/profile", status_code=303)
+        
+        # Mettre à jour le mot de passe
+        current_user.pwd = get_password_hash(new_password)
+        await Database.engine.save(current_user)
+        
+        from src.utils.flash_messages import flash
+        flash(request, "Mot de passe modifié avec succès!", "success")
+        return RedirectResponse(url="/auth/profile", status_code=303)
+        
+    except Exception as e:
+        print(f"❌ Erreur changement mot de passe: {e}")
+        from src.utils.flash_messages import flash
+        flash(request, "Erreur lors du changement de mot de passe.", "error")
+        return RedirectResponse(url="/auth/profile", status_code=303)

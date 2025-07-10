@@ -461,12 +461,24 @@ async def vote_idea(
             # Remove vote
             await VoteService.remove_vote(idea_id, str(current_user.id))
             flash(request, "Vote retiré avec succès", "success")
-            await log_activity(str(current_user.id), "vote_removed", f"Vote retiré pour l'idée: {idea.title}")
+            await log_activity(
+                action="vote_removed",
+                subject_id=idea.subject_id,
+                user=current_user,
+                description=f"Vote retiré pour l'idée: {idea.title}",
+                request=request
+            )
         else:
             # Add vote
             await VoteService.add_vote(idea_id, str(current_user.id))
             flash(request, "Vote ajouté avec succès", "success")
-            await log_activity(str(current_user.id), "vote_added", f"Vote ajouté pour l'idée: {idea.title}")
+            await log_activity(
+                action="vote_added",
+                subject_id=idea.subject_id,
+                user=current_user,
+                description=f"Vote ajouté pour l'idée: {idea.title}",
+                request=request
+            )
         
         return RedirectResponse(url="/user/vote", status_code=303)
         
@@ -501,9 +513,12 @@ async def remove_vote(
             flash(request, "Vote retiré avec succès", "success")
             # Log the activity
             await log_activity(
-                user_id=current_user.id,
-                action="Remove vote from idea",
-                details=f"Idea ID: {idea_id}, Subject: {subject.title}"
+                action="remove_vote_from_idea",
+                subject_id=idea.subject_id,
+                user=current_user,
+                description=f"Vote retiré pour l'idée: {idea.title}",
+                details=f"Idea ID: {idea_id}, Subject: {subject.title}",
+                request=request
             )
         else:
             flash(request, "Erreur lors du retrait du vote", "error")
@@ -820,31 +835,67 @@ async def submit_idea_form(request: Request, current_user: User = Depends(get_cu
         })
         return templates.TemplateResponse("user/submit_idea.html", context)
 
-@router.post("/user/ideas/submit")
-async def submit_idea(
+@router.get("/user/subject/{subject_id}/submit", response_class=HTMLResponse)
+async def submit_idea_for_subject(subject_id: str, request: Request, current_user: User = Depends(get_current_normal_user)):
+    """Formulaire pour soumettre une nouvelle idée pour un sujet spécifique"""
+    try:
+        # Vérifier que le sujet existe et que l'utilisateur peut y soumettre des idées
+        subject = await get_subject(subject_id)
+        if not subject:
+            flash(request, "Sujet non trouvé.", "error")
+            return RedirectResponse(url="/user/subjects", status_code=303)
+        
+        # Vérifier l'accès utilisateur
+        if str(current_user.id) not in subject.users_ids and str(current_user.id) not in subject.gestionnaires_ids:
+            flash(request, "Vous n'avez pas accès à ce sujet.", "error")
+            return RedirectResponse(url="/user/subjects", status_code=303)
+        
+        # Vérifier que l'émission est active
+        if not subject.emission_active:
+            flash(request, "L'émission d'idées n'est pas active pour ce sujet.", "warning")
+            return RedirectResponse(url=f"/user/subject/{subject_id}/ideas", status_code=303)
+        
+        from src.utils.template_helpers import add_organization_context
+        context = await add_organization_context({
+            "request": request,
+            "current_user": current_user,
+            "subject": subject,
+            "show_sidebar": True
+        })
+        return templates.TemplateResponse("user/create_idea.html", context)
+        
+    except Exception as e:
+        print(f"❌ Erreur formulaire soumission idée pour sujet: {e}")
+        flash(request, "Erreur lors du chargement du formulaire.", "error")
+        return RedirectResponse(url="/user/subjects", status_code=303)
+
+@router.post("/user/subject/{subject_id}/submit")
+async def submit_idea_for_subject_post(
+    subject_id: str,
     request: Request,
-    subject_id: str = Form(...),
     title: str = Form(...),
     description: str = Form(default=""),
     current_user: User = Depends(get_current_normal_user)
 ):
-    """Soumettre une nouvelle idée"""
+    """Traitement de la soumission d'une idée pour un sujet spécifique"""
     try:
         # Vérifier que le sujet existe et accepte les idées
         subject = await get_subject(subject_id)
         if not subject:
-            from src.utils.flash_messages import flash
             flash(request, "Sujet non trouvé.", "error")
-            return RedirectResponse(url="/user/ideas/submit", status_code=303)
+            return RedirectResponse(url="/user/subjects", status_code=303)
         
-        # Vérifier que l'utilisateur peut soumettre dans ce sujet
-        if not (subject.emission_active and 
-                (str(current_user.id) in subject.users_ids or str(current_user.id) in subject.gestionnaires_ids)):
-            from src.utils.flash_messages import flash
-            flash(request, "Vous ne pouvez pas soumettre d'idée dans ce sujet.", "error")
-            return RedirectResponse(url="/user/ideas/submit", status_code=303)
+        # Vérifier l'accès utilisateur
+        if str(current_user.id) not in subject.users_ids and str(current_user.id) not in subject.gestionnaires_ids:
+            flash(request, "Vous n'avez pas accès à ce sujet.", "error")
+            return RedirectResponse(url="/user/subjects", status_code=303)
         
-        # Créer l'objet Idea correctement
+        # Vérifier que l'émission est active
+        if not subject.emission_active:
+            flash(request, "L'émission d'idées n'est pas active pour ce sujet.", "error")
+            return RedirectResponse(url=f"/user/subject/{subject_id}/ideas", status_code=303)
+        
+        # Créer l'idée
         idea = Idea(
             subject_id=subject_id,
             user_id=str(current_user.id),
@@ -855,18 +906,13 @@ async def submit_idea(
         # Sauvegarder l'idée
         created_idea = await create_idea(idea)
         
-        # Note: Pas de log d'activité pour la création d'idées par les utilisateurs
-        # Seules les modifications par les gestionnaires sont loggées
-        
-        from src.utils.flash_messages import flash
         flash(request, f"Idée '{title}' soumise avec succès!", "success")
-        return RedirectResponse(url="/user/ideas", status_code=303)
+        return RedirectResponse(url=f"/user/subject/{subject_id}/ideas", status_code=303)
         
     except Exception as e:
-        print(f"❌ Erreur soumission idée: {e}")
-        from src.utils.flash_messages import flash
+        print(f"❌ Erreur soumission idée pour sujet: {e}")
         flash(request, "Erreur lors de la soumission de l'idée.", "error")
-        return RedirectResponse(url="/user/ideas/submit", status_code=303)
+        return RedirectResponse(url=f"/user/subject/{subject_id}/submit", status_code=303)
 
 from fastapi.responses import HTMLResponse
 from src.services.subject_service import get_subject
@@ -951,7 +997,14 @@ async def unvote_idea(
         
         if success:
             flash(request, "Vote retiré avec succès", "success")
-            await log_activity(str(current_user.id), "vote_removed", f"Vote retiré pour l'idée: {idea.title}")
+            await log_activity(
+                action="remove_vote_from_idea",
+                subject_id=idea.subject_id,
+                user=current_user,
+                description=f"Vote retiré pour l'idée: {idea.title}",
+                details=f"Idea ID: {idea_id}, Subject: {subject.title}",
+                request=request
+            )
         else:
             flash(request, "Vous n'aviez pas voté pour cette idée", "warning")
         
@@ -985,11 +1038,14 @@ async def update_subject_preferences(
         user_preferences[str(current_user.id)] = selected_subjects
         request.session["subject_preferences"] = user_preferences
         
-        # Log de l'activité
+        # Log de l'activité  
         await log_activity(
-            user_id=str(current_user.id),
             action="update_subject_preferences",
-            details=f"Préférences mises à jour: {len(selected_subjects)} sujets sélectionnés"
+            subject_id="",  # Pas de sujet spécifique
+            user=current_user,
+            description=f"Préférences de sujets mises à jour",
+            details=f"Préférences mises à jour: {len(selected_subjects)} sujets sélectionnés",
+            request=request
         )
         
         flash(request, f"Vos préférences ont été mises à jour ! {len(selected_subjects)} sujet(s) sélectionné(s).", "success")
@@ -1052,3 +1108,37 @@ async def subject_selection_page(request: Request, current_user: User = Depends(
         print(f"❌ Erreur page sélection sujets: {e}")
         flash(request, "Erreur lors du chargement de la page de sélection.", "error")
         return RedirectResponse(url="/user/dashboard", status_code=303)
+
+@router.post("/user/ideas/submit")
+async def submit_idea_post(
+    request: Request,
+    subject_id: str = Form(...),
+    title: str = Form(...),
+    description: str = Form("") ,
+    current_user: User = Depends(get_current_normal_user)
+):
+    """Traitement du formulaire de soumission d'idée générique"""
+    try:
+        subject = await get_subject(subject_id)
+        if not subject:
+            flash(request, "Sujet non trouvé.", "error")
+            return RedirectResponse(url="/user/ideas/submit", status_code=303)
+        if str(current_user.id) not in subject.users_ids and str(current_user.id) not in subject.gestionnaires_ids:
+            flash(request, "Vous n'avez pas accès à ce sujet.", "error")
+            return RedirectResponse(url="/user/ideas/submit", status_code=303)
+        if not subject.emission_active:
+            flash(request, "L'émission d'idées n'est pas active pour ce sujet.", "error")
+            return RedirectResponse(url="/user/ideas/submit", status_code=303)
+        idea = Idea(
+            subject_id=subject_id,
+            user_id=str(current_user.id),
+            title=title.strip(),
+            description=description.strip() if description else None
+        )
+        await create_idea(idea)
+        flash(request, f"Idée '{title}' soumise avec succès!", "success")
+        return RedirectResponse(url=f"/user/subject/{subject_id}/ideas", status_code=303)
+    except Exception as e:
+        print(f"❌ Erreur soumission idée générique: {e}")
+        flash(request, "Erreur lors de la soumission de l'idée.", "error")
+        return RedirectResponse(url="/user/ideas/submit", status_code=303)

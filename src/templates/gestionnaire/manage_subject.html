@@ -33,43 +33,85 @@
                 </h5>
             </div>
             <div class="card-body">
+                <!-- Mode workflow étape par étape -->
                 <div class="row">
-                    <div class="col-6">
-                        <div class="text-center">
-                            <form method="post" action="/gestionnaire/subject/{{ subject.id }}/toggle_emission">
-                                <button type="submit" class="btn {% if subject.emission_active %}btn-success{% else %}btn-outline-success{% endif %} btn-lg w-100">
-                                    <i class="bi bi-lightbulb me-2"></i>
-                                    {% if subject.emission_active %}
-                                        Émission ACTIVE
-                                    {% else %}
-                                        Émission FERMÉE
-                                    {% endif %}
-                                </button>
-                            </form>
-                            <small class="text-muted">Cliquez pour {{ 'désactiver' if subject.emission_active else 'activer' }}</small>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="text-center">
-                            <form method="post" action="/gestionnaire/subject/{{ subject.id }}/toggle_vote">
-                                <button type="submit" class="btn {% if subject.vote_active %}btn-warning{% else %}btn-outline-warning{% endif %} btn-lg w-100">
-                                    <i class="bi bi-hand-thumbs-up me-2"></i>
-                                    {% if subject.vote_active %}
-                                        Vote ACTIF
-                                    {% else %}
-                                        Vote FERMÉ
-                                    {% endif %}
-                                </button>
-                            </form>
-                            <small class="text-muted">Cliquez pour {{ 'désactiver' if subject.vote_active else 'activer' }}</small>
+                    <div class="col-12 mb-3">
+                        <div class="workflow-container">
+                            <div class="d-flex align-items-center justify-content-center mb-3">
+                                <div class="workflow-step {% if subject.emission_active %}active{% elif not subject.vote_active %}available{% endif %}" data-step="1">
+                                    <div class="step-number">1</div>
+                                    <div class="step-content">
+                                        <form method="post" action="/gestionnaire/subject/{{ subject.id }}/toggle_emission" class="d-inline">
+                                            <button type="submit" class="btn {% if subject.emission_active %}btn-success{% else %}btn-outline-success{% endif %} btn-sm">
+                                                <i class="bi bi-lightbulb me-1"></i>
+                                                {% if subject.emission_active %}
+                                                    Émission ACTIVE
+                                                {% else %}
+                                                    Démarrer émission
+                                                {% endif %}
+                                            </button>
+                                        </form>
+                                        <small class="d-block text-muted mt-1">Collecte des idées</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="workflow-arrow {% if subject.emission_active %}active{% endif %}">
+                                    <i class="bi bi-arrow-right"></i>
+                                </div>
+                                
+                                <div class="workflow-step {% if subject.vote_active %}active{% elif not subject.emission_active and not subject.vote_active %}pending{% else %}available{% endif %}" data-step="2">
+                                    <div class="step-number">2</div>
+                                    <div class="step-content">
+                                        <form method="post" action="/gestionnaire/subject/{{ subject.id }}/toggle_vote" class="d-inline">
+                                            <button type="submit" class="btn {% if subject.vote_active %}btn-warning{% elif subject.emission_active %}btn-outline-warning{% else %}btn-outline-secondary{% endif %} btn-sm" {% if not subject.emission_active and not subject.vote_active %}disabled{% endif %}>
+                                                <i class="bi bi-hand-thumbs-up me-1"></i>
+                                                {% if subject.vote_active %}
+                                                    Vote ACTIF
+                                                {% elif subject.emission_active %}
+                                                    Démarrer vote
+                                                {% else %}
+                                                    Vote (fermé)
+                                                {% endif %}
+                                            </button>
+                                        </form>
+                                        <small class="d-block text-muted mt-1">Sélection des meilleures</small>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="mt-3 text-center">
-                    <small class="text-info">
-                        <i class="bi bi-info-circle me-1"></i>
-                        L'activation du vote désactive automatiquement l'émission d'idées
-                    </small>
+                
+                <!-- État actuel et informations -->
+                <div class="alert {% if subject.emission_active %}alert-success{% elif subject.vote_active %}alert-warning{% else %}alert-info{% endif %} mb-3">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-{% if subject.emission_active %}lightbulb-fill{% elif subject.vote_active %}hand-thumbs-up-fill{% else %}pause-circle{% endif %} me-2 fs-5"></i>
+                        <div>
+                            <strong>État actuel :</strong>
+                            {% if subject.emission_active %}
+                                Collecte d'idées en cours - Les participants peuvent soumettre leurs idées
+                            {% elif subject.vote_active %}
+                                Session de vote en cours - Les participants votent pour leurs idées préférées
+                            {% else %}
+                                Sujet fermé - Aucune activité en cours
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Règles importantes -->
+                <div class="card bg-light border-0">
+                    <div class="card-body p-3">
+                        <h6 class="text-primary mb-2">
+                            <i class="bi bi-info-circle me-1"></i>Règles importantes
+                        </h6>
+                        <ul class="mb-0 small text-muted">
+                            <li><strong>Workflow séquentiel :</strong> Commencez par l'émission d'idées, puis passez au vote</li>
+                            <li><strong>Exclusivité :</strong> Une seule activité peut être active à la fois</li>
+                            <li><strong>Transition automatique :</strong> Activer le vote ferme automatiquement l'émission</li>
+                            <li><strong>Résultats :</strong> Visibles uniquement quand aucune activité n'est en cours</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
@@ -273,12 +315,108 @@
 
 {% endblock %}
 
+{% block styles %}
+<style>
+.workflow-container {
+    padding: 20px 0;
+}
+
+.workflow-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    min-width: 150px;
+    position: relative;
+}
+
+.step-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 18px;
+    margin-bottom: 10px;
+    border: 3px solid #e5e7eb;
+    background: #f8f9fa;
+    color: #6b7280;
+    transition: all 0.3s ease;
+}
+
+.workflow-step.active .step-number {
+    background: #22c55e;
+    border-color: #22c55e;
+    color: white;
+    transform: scale(1.1);
+}
+
+.workflow-step.available .step-number {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: white;
+}
+
+.workflow-step.pending .step-number {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+    color: #9ca3af;
+}
+
+.workflow-arrow {
+    margin: 0 20px;
+    color: #d1d5db;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    margin-top: -30px;
+    transition: color 0.3s ease;
+}
+
+.workflow-arrow.active {
+    color: #22c55e;
+}
+
+.step-content {
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.workflow-step.pending .step-content button {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+    .workflow-container .d-flex {
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    .workflow-arrow {
+        transform: rotate(90deg);
+        margin: 10px 0;
+    }
+    
+    .workflow-step {
+        min-width: auto;
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}
+
 {% block scripts %}
 {{ super() }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-const ideas = {{ ideas[:10]|tojson }};
-const subjectUsersCount = {{ subject.users_ids|length }};
+const ideas = {{ ideas[:10]|tojson|default('[]', true) }};
+const subjectUsersCount = {{ subject.users_ids|length if subject and subject.users_ids is defined else 0 }};
 // Barres votes/idéé
 const ctx = document.getElementById('ideasVotesChart');
 if (ctx && ideas.length > 0) {

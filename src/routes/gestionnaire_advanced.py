@@ -27,6 +27,20 @@ async def get_current_gestionnaire(request: Request, current_user: User = Depend
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Vous n'avez pas les droits de gestionnaire")
     return current_user
 
+# Remplace la dépendance get_current_gestionnaire par une version qui accepte aussi les superadmins
+# Correction: rendre la dépendance asynchrone et utiliser await au lieu de asyncio.run
+async def get_current_gestionnaire_or_superadmin(request: Request, current_user: User = Depends(get_current_user)):
+    if not current_user:
+        raise HTTPException(status_code=status.HTTP_303_SEE_OTHER, detail="Not authenticated", headers={"Location": "/auth/login"})
+    if "superadmin" in current_user.roles:
+        return current_user
+    # Gestionnaire classique
+    from src.services.subject_service import get_subjects_by_gestionnaire
+    subjects = await get_subjects_by_gestionnaire(str(current_user.id))
+    if not subjects:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Vous n'avez pas les droits de gestionnaire")
+    return current_user
+
 @router.get("/gestionnaire/subject/{subject_id}/manage", response_class=HTMLResponse)
 async def manage_subject(subject_id: str, request: Request, current_user: User = Depends(get_current_gestionnaire)):
     """Page de gestion complète d'un sujet"""
@@ -137,7 +151,7 @@ async def subject_history(subject_id: str, request: Request, current_user: User 
     })
 
 @router.get("/gestionnaire/ideas/bulk", response_class=HTMLResponse)
-async def bulk_ideas_management(request: Request, current_user: User = Depends(get_current_gestionnaire)):
+async def bulk_ideas_management(request: Request, current_user: User = Depends(get_current_gestionnaire_or_superadmin)):
     """Page de modification en masse des idées"""
     subjects = await get_subjects_by_gestionnaire(str(current_user.id))
     
@@ -180,7 +194,7 @@ async def bulk_ideas_management(request: Request, current_user: User = Depends(g
     return templates.TemplateResponse("gestionnaire/bulk_ideas.html", context)
 
 @router.post("/gestionnaire/ideas/bulk/update")
-async def bulk_update_ideas(request: Request, current_user: User = Depends(get_current_gestionnaire)):
+async def bulk_update_ideas(request: Request, current_user: User = Depends(get_current_gestionnaire_or_superadmin)):
     """Mise à jour en masse des idées"""
     form = await request.form()
     
@@ -480,3 +494,40 @@ async def remove_manager_from_subject(
         print(f"❌ Erreur suppression gestionnaire: {e}")
         request.session["error_message"] = "Erreur lors de la suppression du gestionnaire."
         return RedirectResponse(url="/gestionnaire/managers", status_code=303)
+
+@router.post("/gestionnaire/ideas/bulk/delete")
+async def bulk_delete_ideas(request: Request, current_user: User = Depends(get_current_gestionnaire_or_superadmin)):
+    """Suppression en masse des idées sélectionnées"""
+    form = await request.form()
+    idea_ids_raw = form.get("idea_ids")
+    import json
+    try:
+        idea_ids = json.loads(idea_ids_raw) if idea_ids_raw else []
+    except Exception:
+        idea_ids = []
+    
+    from src.services.idea_service import get_idea, delete_idea
+    from src.services.subject_service import get_subject
+    from src.services.activity_log_service import log_activity
+    deleted_count = 0
+    for idea_id in idea_ids:
+        idea = await get_idea(idea_id)
+        if not idea:
+            continue
+        subject = await get_subject(idea.subject_id)
+        if not subject or str(current_user.id) not in subject.gestionnaires_ids:
+            continue
+        idea_title = idea.title
+        success = await delete_idea(idea_id)
+        if success:
+            await log_activity(
+                action="delete_idea",
+                subject_id=idea.subject_id,
+                user=current_user,
+                description=f"Suppression en masse de l'idée '{idea_title}'",
+                details="Suppression groupée",
+                request=request
+            )
+            deleted_count += 1
+    request.session["success_message"] = f"{deleted_count} idée(s) supprimée(s) avec succès."
+    return RedirectResponse(url="/gestionnaire/ideas/bulk", status_code=status.HTTP_303_SEE_OTHER)

@@ -611,3 +611,49 @@ async def sync_all_user_roles(request: Request, current_user: User = Depends(get
         flash(request, "Erreur lors de la synchronisation des rôles.", "error")
     
     return RedirectResponse(url="/superadmin/users", status_code=303)
+
+@router.post("/superadmin/users/{user_id}/reset-password")
+async def reset_user_password(
+    user_id: str,
+    request: Request,
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+    current_user: User = Depends(get_current_superadmin)
+):
+    """Réinitialiser le mot de passe d'un utilisateur (super admin uniquement)"""
+    try:
+        # Convertir l'ID string en ObjectId
+        user_to_reset = await Database.engine.find_one(User, User.id == ObjectId(user_id))
+        if not user_to_reset:
+            from src.utils.flash_messages import flash
+            flash(request, "Utilisateur non trouvé.", "error")
+            return RedirectResponse(url="/superadmin/users", status_code=303)
+        
+        # Vérifier que les mots de passe correspondent
+        if new_password != confirm_password:
+            from src.utils.flash_messages import flash
+            flash(request, "Les mots de passe ne correspondent pas.", "error")
+            return RedirectResponse(url=f"/superadmin/users/{user_id}/edit", status_code=303)
+        
+        # Vérifier la longueur du mot de passe
+        if len(new_password) < 6:
+            from src.utils.flash_messages import flash
+            flash(request, "Le mot de passe doit contenir au moins 6 caractères.", "error")
+            return RedirectResponse(url=f"/superadmin/users/{user_id}/edit", status_code=303)
+        
+        # Hacher le nouveau mot de passe
+        hashed_password = get_password_hash(new_password)
+        
+        # Mettre à jour le mot de passe de l'utilisateur
+        user_to_reset.pwd = hashed_password
+        await Database.engine.save(user_to_reset)
+        
+        from src.utils.flash_messages import flash
+        flash(request, f"✅ Mot de passe réinitialisé avec succès pour {user_to_reset.prenom} {user_to_reset.nom}. Informez l'utilisateur de son nouveau mot de passe de manière sécurisée.", "success")
+        return RedirectResponse(url=f"/superadmin/users/{user_id}/edit", status_code=303)
+        
+    except Exception as e:
+        print(f"❌ Erreur lors de la réinitialisation du mot de passe: {e}")
+        from src.utils.flash_messages import flash
+        flash(request, "Erreur lors de la réinitialisation du mot de passe.", "error")
+        return RedirectResponse(url=f"/superadmin/users/{user_id}/edit", status_code=303)

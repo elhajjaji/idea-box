@@ -245,9 +245,18 @@ function bulkDelete() {
         alert('Veuillez sélectionner au moins une idée.');
         return;
     }
-    
     if (confirm(`Êtes-vous sûr de vouloir supprimer ${selectedBoxes.length} idée(s) ? Cette action est irréversible.`)) {
-        console.log('Supprimer', selectedBoxes.length, 'idées');
+        // Créer et soumettre un formulaire POST avec les IDs sélectionnés
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/gestionnaire/ideas/bulk/delete';
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'idea_ids';
+        input.value = JSON.stringify(Array.from(selectedBoxes).map(cb => cb.value));
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
     }
 }
 </script>
